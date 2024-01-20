@@ -257,8 +257,8 @@ ENV FFMPEG_FLAGS="--disable-asm \
 --disable-optimizations \
 --target-os=android \
 --enable-cross-compile \
---cross-prefix=llvm- \
---cc=$aarch64-linux-android-clang \
+--cross-prefix=$TOOLCHAIN/llvm- \
+--cc=$TOOLCHAIN/aarch64-linux-android$API-clang \
 --arch=arm64 \
 --cpu=armv8-a \
 --enable-version3 \
@@ -286,7 +286,7 @@ ENV FFMPEG_FLAGS="--disable-asm \
 
 # Setup FFMPEG_VERSION
 
-RUN wget -c http://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.bz2 -O - | tar -xjf - -C $HOME/build/ && cd $HOME/build/ffmpeg-$FFMPEG_VERSION
+RUN wget -c http://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.bz2 -O - | tar -xjf - -C $HOME/build/ && cd $HOME/build/ffmpeg-$FFMPEG_VERSION && ./configure $FFMPEG_FLAGS
 
 #RUN mkdir -p $HOME/build/ffmpeg && git clone --depth 1 --branch n$FFMPEG_VERSION https://github.com/FFmpeg/FFmpeg/ $HOME/build/ffmpeg
 #RUN cd $HOME/build/ffmpeg && ./configure $FFMPEG_FLAGS
