@@ -339,7 +339,7 @@ RUN wget -c https://github.com/bulletphysics/bullet3/archive/$BULLET_VERSION.tar
 
 # Setup GL4ES_VERSION
 
-RUN wget -c https://github.com/ptitSeb/gl4es/archive/v$GL4ES_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/gl4es-$GL4ES_VERSION
+RUN wget -c https://github.com/ptitSeb/gl4es/archive/v$GL4ES_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/gl4es-$GL4ES_VERSION && ndk-build $NDK_BUILD_FLAGS
 
 #RUN mkdir -p $HOME/build/gl4es && git clone --depth 1 --branch v$GL4ES_VERSION https://github.com/ptitSeb/gl4es/ $HOME/build/gl4es
 #RUN cd $HOME/build/gl4es && ndk-build $NDK_BUILD_FLAGS
