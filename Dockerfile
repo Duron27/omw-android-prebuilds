@@ -148,8 +148,8 @@ ENV LIBICU_FLAGS="\
 --with-cross-build=/root/build/icu-host-build"
 
 # Setup LIBICU
-#RUN cd /root/build && wget https://github.com/unicode-org/icu/archive/refs/tags/release-$LIBICU_VERSION.zip && unzip -o release-$LIBICU_VERSION.zip && rm -rf release-$LIBICU_VERSION.zip
-#RUN /root/downloads/icu-release-70-1/icu4c/source/configure $COMMON_AUTOCONF_FLAGS $LIBICU_FLAGS && make check_PROGRAMS= bin_PROGRAMS= && make install check_PROGRAMS= bin_PROGRAMS=
+RUN cd /root/build && wget https://github.com/unicode-org/icu/archive/refs/tags/release-$LIBICU_VERSION.zip && unzip -o release-$LIBICU_VERSION.zip && rm -rf release-$LIBICU_VERSION.zip
+RUN cd /root/downloads/icu-release-70-1/icu4c/source && ./configure $COMMON_AUTOCONF_FLAGS $LIBICU_FLAGS && make check_PROGRAMS= bin_PROGRAMS= && make install check_PROGRAMS= bin_PROGRAMS=
 
 #RUN mkdir -p $HOME/build/icu-$LIBICU_VERSION && cd $_ && unzip $HOME/downloads/release-$LIBICU_VERSION.zip && icu-release-$LIBICU_VERSION/icu4c/source/configure $LIBICU_FLAGS
 # RUN cd $HOME/downloads/icu-release-$LIBICU_VERSION/icu4c/source/ && make check_PROGRAMS= bin_PROGRAMS= && make install check_PROGRAMS= bin_PROGRAMS=
