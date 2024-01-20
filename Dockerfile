@@ -382,7 +382,7 @@ RUN wget -c https://github.com/MyGUI/mygui/archive/MyGUI$MYGUI_VERSION.tar.gz -O
 
 # Setup LZ4_VERSION
 
-RUN wget -c https://github.com/lz4/lz4/archive/v$LZ4_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/lz4-$LZ4_VERSION
+RUN wget -c https://github.com/lz4/lz4/archive/v$LZ4_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/lz4-$LZ4_VERSION && cmake ./build/cmake/ $COMMON_CMAKE_ARGS -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF && make && make install
 
 #RUN mkdir -p $HOME/build/lz4 && git clone --depth 1 --branch v$LZ4_VERSION https://github.com/lz4/lz4/ $HOME/build/lz4
 #RUN cd $HOME/build/lz4 && cmake . $COMMON_CMAKE_ARGS -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF && make && make install
