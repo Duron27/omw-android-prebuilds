@@ -286,7 +286,7 @@ ENV FFMPEG_FLAGS="--disable-asm \
 
 # Setup FFMPEG_VERSION
 
-RUN wget -c http://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.bz2 -O - | tar -xjf - -C $HOME/build/ && cd $HOME/build/ffmpeg-$FFMPEG_VERSION && ./configure $FFMPEG_FLAGS
+RUN wget -c http://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.bz2 -O - | tar -xjf - -C $HOME/build/ && cd $HOME/build/ffmpeg-$FFMPEG_VERSION && ./configure $FFMPEG_FLAGS && make && make install
 
 #RUN mkdir -p $HOME/build/ffmpeg && git clone --depth 1 --branch n$FFMPEG_VERSION https://github.com/FFmpeg/FFmpeg/ $HOME/build/ffmpeg
 #RUN cd $HOME/build/ffmpeg && ./configure $FFMPEG_FLAGS
@@ -303,7 +303,7 @@ RUN wget -c http://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.bz2 -O - | tar
 # Setup SDL2_VERSION
 
 RUN wget -c https://www.libsdl.org/release/SDL2-$SDL2_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/SDL2-$SDL2_VERSION
-#&& ndk-build $NDK_BUILD_FLAGS
+#&& /root/Android/ndk/26.1.10909125/ndk-build  $NDK_BUILD_FLAGS
 
 #RUN mkdir -p $HOME/build/sdl2 && git clone --depth 1 --branch release-$SDL2_VERSION https://github.com/libsdl-org/SDL/ $HOME/build/sdl2
 #RUN cd $HOME/build/sdl2 && ndk-build $NDK_BUILD_FLAGS
@@ -340,7 +340,7 @@ RUN wget -c https://github.com/bulletphysics/bullet3/archive/$BULLET_VERSION.tar
 
 # Setup GL4ES_VERSION
 
-RUN wget -c https://github.com/ptitSeb/gl4es/archive/v$GL4ES_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/gl4es-$GL4ES_VERSION && ndk-build $NDK_BUILD_FLAGS
+RUN wget -c https://github.com/ptitSeb/gl4es/archive/v$GL4ES_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/gl4es-$GL4ES_VERSION && /root/Android/ndk/26.1.10909125/ndk-build  $NDK_BUILD_FLAGS
 
 #RUN mkdir -p $HOME/build/gl4es && git clone --depth 1 --branch v$GL4ES_VERSION https://github.com/ptitSeb/gl4es/ $HOME/build/gl4es
 #RUN cd $HOME/build/gl4es && ndk-build $NDK_BUILD_FLAGS
