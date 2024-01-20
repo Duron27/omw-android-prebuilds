@@ -326,10 +326,7 @@ ENV BULLET_FLAGS="\
 
 # Setup BULLET_VERSION
 
-RUN wget -c https://github.com/bulletphysics/bullet3/archive/$BULLET_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/bullet3-$BULLET_VERSION
-
-#RUN mkdir -p $HOME/build/bullet && git clone --depth 1 --branch $BULLET_VERSION https://github.com/bulletphysics/bullet3/ $HOME/build/bullet
-#RUN cd $HOME/build/bullet && cmake . $COMMON_CMAKE_ARGS $BULLET_FLAGS && make && make install
+RUN wget -c https://github.com/bulletphysics/bullet3/archive/$BULLET_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/bullet3-$BULLET_VERSION && cmake . $COMMON_CMAKE_ARGS $BULLET_FLAGS && make && make install
 
 #    █████████  █████       █████ █████  ██████████  █████████
 #   ███░░░░░███░░███       ░░███ ░░███  ░░███░░░░░█ ███░░░░░███
