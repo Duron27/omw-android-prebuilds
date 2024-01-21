@@ -73,8 +73,8 @@ RUN rm -f $TOOLCHAIN/$NDK_TRIPLET-gcc
 RUN rm -f $TOOLCHAIN/$NDK_TRIPLET-g++
 
 # symlink gcc to clang
-RUN ln -s $NDK_TRIPLET$API-clang /$TOOLCHAIN/$NDK_TRIPLET-gcc
-RUN ln -s $NDK_TRIPLET$API-clang++ /$TOOLCHAIN/$NDK_TRIPLET-g++
+RUN ln -s $NDK_TRIPLET$API-clang $TOOLCHAIN/$NDK_TRIPLET-gcc
+RUN ln -s $NDK_TRIPLET$API-clang++ $TOOLCHAIN/$NDK_TRIPLET-g++
 
 ENV COMMON_CMAKE_ARGS="\
 -DCMAKE_TOOLCHAIN_FILE=/root/Android/ndk/$NDK_VERSION/build/cmake/android.toolchain.cmake \
