@@ -61,7 +61,7 @@ RUN cd $HOME/build/icu-host-build && make -j $(nproc)
 
 # NDK Toolchain Settings
 ENV TOOLCHAIN=/root/Android/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/linux-x86_64/bin
-ENV PATH=$PATH:~/Android/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/linux-x86_64/bin
+ENV PATH=$PATH:~/Android/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/linux-x86_64/bin/
 
 # NDK Settings
 ENV ABI=arm64-v8a
@@ -396,13 +396,12 @@ RUN wget -c https://github.com/lz4/lz4/archive/v$LZ4_VERSION.tar.gz -O - | tar -
 # ░░░░░░░░░░░   ░░░░░░░░   ░░░░░   ░░░░░  ░░░░░░░░   ░░░░░    ░░░░░
 
 ENV LUAJIT_FLAGS="\
-HOST_CC=gcc -m64 \
 CFLAGS= \
-TARGET_CFLAGS=$CFLAGS \
 CROSS=llvm- \
-STATIC_CC=$NDK_TRIPLET-clang \
-DYNAMIC_CC=$NDK_TRIPLET-clang\ -fPIC \
-TARGET_LD=$NDK_TRIPLET-clang"
+STATIC_CC=$TOOLCHAIN/$NDK_TRIPLET$API-clang \
+DYNAMIC_CC=$TOOLCHAIN/$NDK_TRIPLET$API-clang\ -fPIC \
+TARGET_LD=$TOOLCHAIN/$NDK_TRIPLET$API-clang \
+PREFIX=/root/build"
 
 # Setup LUAJIT_VERSION
 
