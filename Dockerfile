@@ -395,17 +395,35 @@ RUN wget -c https://github.com/lz4/lz4/archive/v$LZ4_VERSION.tar.gz -O - | tar -
 #  ███████████ ░░████████   █████   █████░░████████   █████    █████
 # ░░░░░░░░░░░   ░░░░░░░░   ░░░░░   ░░░░░  ░░░░░░░░   ░░░░░    ░░░░░
 
-ENV LUAJIT_FLAGS="\
-CFLAGS= \
-CROSS=llvm- \
-STATIC_CC=$TOOLCHAIN/$NDK_TRIPLET$API-clang \
-DYNAMIC_CC=$TOOLCHAIN/$NDK_TRIPLET$API-clang\ -fPIC \
-TARGET_LD=$TOOLCHAIN/$NDK_TRIPLET$API-clang \
-PREFIX=/root/build"
+#ENV LUAJIT_FLAGS=\
+#HOST_CC="gcc -m64" \
+#CFLAGS="" \
+#CROSS=llvm-"" \
+#STATIC_CC="$TOOLCHAIN/$NDK_TRIPLET$API-clang" \
+#DYNAMIC_CC="$TOOLCHAIN/$NDK_TRIPLET$API-clang\ -fPIC" \
+#TARGET_LD="$TOOLCHAIN/$NDK_TRIPLET$API-clang" \
+#TARGET_STRIP="$TOOLCHAIN/llvm-strip" \
+#TARGET_AR="$TOOLCHAIN/llvm-ar rcus" \
+#PREFIX="/root/build/"
+
 
 # Setup LUAJIT_VERSION
 
-RUN wget -c https://github.com/luaJit/LuaJIT/archive/v$LUAJIT_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/LuaJIT-$LUAJIT_VERSION
+RUN wget -c https://github.com/luaJit/LuaJIT/archive/v$LUAJIT_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/LuaJIT-$LUAJIT_VERSION && make amalg \
+HOST_CC="gcc -m64" \
+CROSS=$TARGET$API- \
+STATIC_CC=$TOOLCHAIN/$NDK_TRIPLET$API-clang \
+DYNAMIC_CC="$TOOLCHAIN/$NDK_TRIPLET$API-clang -fPIC" \
+TARGET_LD=$TOOLCHAIN/$NDK_TRIPLET$API-clang \
+TARGET_AR="$TOOLCHAIN/llvm-ar rcus" \
+TARGET_STRIP=$TOOLCHAIN/llvm-strip && make install \
+HOST_CC="gcc -m64" \
+CROSS=$TARGET$API- \
+STATIC_CC=$TOOLCHAIN/$NDK_TRIPLET$API-clang \
+DYNAMIC_CC="$TOOLCHAIN/$NDK_TRIPLET$API-clang -fPIC" \
+TARGET_LD=$TOOLCHAIN/$NDK_TRIPLET$API-clang \
+TARGET_AR="$TOOLCHAIN/llvm-ar rcus" \
+TARGET_STRIP=$TOOLCHAIN/llvm-strip
 
 #RUN mkdir -p $HOME/build/luajit && git clone --depth 1 --branch v$LUAJIT_VERSION https://github.com/LuaJIT/LuaJIT/ $HOME/build/luajit
 #RUN cd $HOME/build/luajit && make amalg $LUAJIT_FLAGS
