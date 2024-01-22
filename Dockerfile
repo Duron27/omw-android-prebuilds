@@ -35,7 +35,7 @@ ENV LDFLAGS="-fPIC -Wl,--undefined-version"
 
 RUN dnf install -y copr-cli dnf-plugins-core && dnf copr enable -y dturner/OpenMW-Deps
 RUN dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
-    && dnf install -y xz unshield bzip2 unshield-devel mygui mygui-devel unzip openCOLLADA clang OpenSceneGraph-OMW recastnavigation bullet redhat-lsb-core doxygen openal-devel SDL2-devel qt5-qtbase-devel nano git boost-devel java-$JAVA_VERSION-openjdk\
+    && dnf install -y xz unshield bzip2 unshield-devel mygui mygui-devel unzip openCOLLADA clang OpenSceneGraph-OMW recastnavigation bullet redhat-lsb-core doxygen openal-devel ghc-lzma-devel python-devel SDL2-devel qt5-qtbase-devel nano git boost-devel java-$JAVA_VERSION-openjdk\
     ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake lz4-devel zlib-devel freetype-devel luajit-devel libXt-devel
 
 ENV JAVA_HOME='/usr/lib/jvm/java-17-openjdk-17.0.9.0.9-3.fc39.x86_64'
