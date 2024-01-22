@@ -244,6 +244,12 @@ ENV BOOST_FLAGS="-j4 \
 
 RUN wget -c https://github.com/boostorg/boost/releases/download/boost-$BOOST_VERSION/boost-$BOOST_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/boost-$BOOST_VERSION && ./bootstrap.sh && ./b2 $BOOST_FLAGS
 
+RUN llvm-ranlib /root/build/boost-$BOOST_VERSION/stage/lib/libboost_filesystem.a
+RUN llvm-ranlib /root/build/boost-$BOOST_VERSION/stage/lib/libboost_program_options.a
+RUN llvm-ranlib /root/build/boost-$BOOST_VERSION/stage/lib/libboost_system.a
+RUN llvm-ranlib /root/build/boost-$BOOST_VERSION/stage/lib/libboost_iostreams.a
+RUN llvm-ranlib /root/build/boost-$BOOST_VERSION/stage/lib/libboost_regex.a
+
 #  ███████████ ███████████ ██████   ██████ ███████████  ██████████   █████████
 # ░░███░░░░░░█░░███░░░░░░█░░██████ ██████ ░░███░░░░░███░░███░░░░░█  ███░░░░░███
 #  ░███   █ ░  ░███   █ ░  ░███░█████░███  ░███    ░███ ░███  █ ░  ███     ░░░
@@ -466,15 +472,13 @@ RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v2.9.12.tar.gz -O
 #  ░░█████████  ░░░███████░   ███████████ ███████████ █████   █████ ██████████   █████   █████
 #   ░░░░░░░░░     ░░░░░░░    ░░░░░░░░░░░ ░░░░░░░░░░░ ░░░░░   ░░░░░ ░░░░░░░░░░   ░░░░░   ░░░░░
 
-ENV COLLADA_FLAGS="\
 -DBoost_USE_STATIC_LIBS=ON \
 -DBoost_USE_STATIC_RUNTIME=ON \
 -DBoost_NO_SYSTEM_PATHS=ON \
--DBoost_INCLUDE_DIR=/include \
+-DBoost_INCLUDE_DIR=/root/build/boost-$BOOST_VERSION/stage/lib/ \
 -DHAVE_STRTOQ=0 \
 -DUSE_FILE32API=1 \
--DCMAKE_CXX_FLAGS=-std=gnu++11\ -I /include/\ $ENV{CXXFLAGS}"
-
+-DCMAKE_CXX_FLAGS=-std=gnu++11"
 # Setup LIBCOLLADA_VERSION
 
 RUN wget -c https://github.com/rdiankov/collada-dom/archive/v2.5.0.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/collada-dom-2.5.0
@@ -504,11 +508,11 @@ ENV OSG_FLAGS="\
 -DBUILD_OSG_PLUGIN_JPEG=ON \
 -DBUILD_OSG_PLUGIN_PNG=ON \
 -DBUILD_OSG_PLUGIN_FREETYPE=ON \
--DJPEG_INCLUDE_DIR=/include/ \
--DPNG_INCLUDE_DIR=/include/ \
--DFREETYPE_DIR= \
--DCOLLADA_INCLUDE_DIR=/include/collada-dom2.5 \
--DCOLLADA_DIR=/include/collada-dom2.5/1.4 \
+-DJPEG_INCLUDE_DIR=/root/build/libjpeg-turbo-$LIBJPEG_TURBO_VERSION \
+-DPNG_INCLUDE_DIR=$HOME/build/libpng-$LIBPNG_VERSION \
+-DFREETYPE_DIR=$HOME/build/freetype-$FREETYPE2_VERSION \
+-DCOLLADA_INCLUDE_DIR=$HOME/build/collada-dom-2.5.0 \
+-DCOLLADA_DIR=$HOME/build/collada-dom-2.5.0/1.4 \
 -DOSG_CPP_EXCEPTIONS_AVAILABLE=TRUE \
 -DOSG_GL1_AVAILABLE=ON \
 -DOSG_GL2_AVAILABLE=OFF \
@@ -524,7 +528,7 @@ ENV OSG_FLAGS="\
 -DBUILD_OSG_APPLICATIONS=OFF \
 -DBUILD_OSG_PLUGINS_BY_DEFAULT=OFF \
 -DBUILD_OSG_DEPRECATED_SERIALIZERS=OFF \
--DCMAKE_CXX_FLAGS=-std=gnu++11\ -I/include/\ $ENV{CXXFLAGS}"
+-DCMAKE_CXX_FLAGS=-std=gnu++11\ -I /root/build/"
 
 # Setup OPENSCENEGRAPH_VERSION
 
@@ -558,8 +562,8 @@ ENV OPENMW_FLAGS="\
 -DOPENMW_USE_SYSTEM_SQLITE3=OFF \
 -DOPENMW_USE_SYSTEM_YAML_CPP=OFF \
 -DOPENMW_USE_SYSTEM_ICU=ON \
--DOPENAL_INCLUDE_DIR=/include/AL/ \
--DBullet_INCLUDE_DIR=/include/bullet/ \
+-DOPENAL_INCLUDE_DIR=$HOME/build/openal-soft-$OPENAL_VERSION/ \
+-DBullet_INCLUDE_DIR=$HOME/build/bullet3-$BULLET_VERSION/ \
 -DOSG_STATIC=TRUE \
 -DMyGUI_LIBRARY=/lib/libMyGUIEngineStatic.a"
 
