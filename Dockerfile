@@ -451,7 +451,7 @@ ENV LIBXML_FLAGS="\
 
 # Setup LIBXML_VERSION
 
-RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v2.12.2.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/libxml2-2.12.2 && cmake . $COMMON_CMAKE_ARGS $LIBXML_FLAGS
+RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v2.9.12.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/libxml2-2.9.12 && cmake . $COMMON_CMAKE_ARGS $LIBXML_FLAGS
 
 #RUN mkdir -p $HOME/build/libxml && git clone --depth 1 --branch v2.12.2 https://github.com/GNOME/libxml2/ $HOME/build/libxml
 #RUN cd $HOME/build/libxml && cmake . $COMMON_CMAKE_ARGS $LIBXML_FLAGS
