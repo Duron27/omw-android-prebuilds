@@ -48,9 +48,9 @@ RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "build-tools;$PLATFO
 #COPY --chmod=0755 openmw-android /openmw-android
 #COPY --chmod=0755 patches /patches
 
-ENV PATH=$PATH:~/Android/cmdline-tools/latest/bin/
-ENV PATH=$PATH:~/Android/platform-tools/
-ENV PATH=$PATH:~/Android/ndk/$NDK_VERSION/
+ENV PATH=$PATH:/root/Android/cmdline-tools/latest/bin/
+ENV PATH=$PATH:/root/Android/platform-tools/
+ENV PATH=$PATH:/root/Android/ndk/$NDK_VERSION/
 
 ENV prefix=${CMAKE_INSTALL_PREFIX}
 
@@ -61,7 +61,7 @@ RUN cd $HOME/build/icu-host-build && make -j $(nproc)
 
 # NDK Toolchain Settings
 ENV TOOLCHAIN=/root/Android/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/linux-x86_64/bin
-ENV PATH=$PATH:~/Android/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/linux-x86_64/bin/
+ENV PATH=$PATH:/root//Android/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/linux-x86_64/bin/
 
 # NDK Settings
 ENV ABI=arm64-v8a
@@ -472,6 +472,7 @@ RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v2.9.12.tar.gz -O
 #  ░░█████████  ░░░███████░   ███████████ ███████████ █████   █████ ██████████   █████   █████
 #   ░░░░░░░░░     ░░░░░░░    ░░░░░░░░░░░ ░░░░░░░░░░░ ░░░░░   ░░░░░ ░░░░░░░░░░   ░░░░░   ░░░░░
 
+ENV COLLADA_FLAGS="\
 -DBoost_USE_STATIC_LIBS=ON \
 -DBoost_USE_STATIC_RUNTIME=ON \
 -DBoost_NO_SYSTEM_PATHS=ON \
