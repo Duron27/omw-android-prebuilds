@@ -33,10 +33,10 @@ ENV CFLAGS="-fPIC -O3"
 ENV CXXFLAGS="-fPIC -frtti -fexceptions -O3"
 ENV LDFLAGS="-fPIC -Wl,--undefined-version"
 
-RUN dnf install -y copr-cli dnf-plugins-core && dnf copr enable -y dturner/OpenMW-Deps
+
 RUN dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
-    && dnf install -y xz unshield bzip2 unshield-devel mygui mygui-devel unzip openCOLLADA clang OpenSceneGraph-OMW recastnavigation bullet redhat-lsb-core doxygen openal-devel ghc-lzma-devel python-devel SDL2-devel qt5-qtbase-devel nano git boost-devel java-$JAVA_VERSION-openjdk\
-    ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake lz4-devel zlib-devel freetype-devel luajit-devel libXt-devel
+    && dnf install -y xz bzip2 unzip clang redhat-lsb-core doxygen python-devel nano git java-$JAVA_VERSION-openjdk\
+    gcc-c++ tinyxml-devel cmake 
 
 ENV JAVA_HOME='/usr/lib/jvm/java-17-openjdk-17.0.9.0.9-3.fc39.x86_64'
 
@@ -47,7 +47,7 @@ RUN cd $HOME/downloads && wget https://github.com/unicode-org/icu/archive/refs/t
 RUN wget https://dl.google.com/android/repository/commandlinetools-linux-$SDK_CMDLINE_TOOLS.zip && unzip commandlinetools-linux-$SDK_CMDLINE_TOOLS.zip && mkdir -p $HOME/Android/cmdline-tools/ && mv cmdline-tools/ $HOME/Android/cmdline-tools/latest && rm commandlinetools-linux-$SDK_CMDLINE_TOOLS.zip
 RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses
 RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "ndk;$NDK_VERSION" --channel=0
-RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "build-tools;$PLATFORM_TOOLS_VERSION"
+
 #Setup ICU for the Host
 RUN cd $HOME && unzip -o $HOME/downloads/release-$LIBICU_VERSION.zip && cd $HOME/icu-release-$LIBICU_VERSION && icu4c/source/configure --disable-tests --disable-samples --disable-icuio --disable-extras CC="gcc" CXX="g++" && make -j $(nproc)
 
