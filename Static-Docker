@@ -31,7 +31,7 @@ ENV JAVA_VERSION=17
 # Global C, CXX and LDFLAGS
 ENV CFLAGS="-fPIC -O3"
 ENV CXXFLAGS="-fPIC -frtti -fexceptions -O3"
-ENV LDFLAGS="-fPIC -Wl,--undefined-version -fuse-ld=lld"
+ENV LDFLAGS="-fPIC -Wl,--undefined-version"
 
 
 RUN dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
