@@ -14,7 +14,7 @@ ENV LIBICU_VERSION=70-1
 ENV FFMPEG_VERSION=4.4
 ENV SDL2_VERSION=2.0.22
 ENV BULLET_VERSION=3.17
-ENV ZLIB_VERSION=1.2.11
+ENV ZLIB_VERSION=1.3
 ENV LIBXML2_VERSION=2.9.12
 ENV MYGUI_VERSION=3.4.3
 ENV GL4ES_VERSION=5ac069d82ad8ca2cc3c574484e4c5bad880db83e
@@ -33,6 +33,10 @@ ENV CFLAGS="-fPIC -O3"
 ENV CXXFLAGS="-fPIC -frtti -fexceptions -O3"
 ENV LDFLAGS="-fPIC -Wl,--undefined-version"
 ENV SPECIAL_LDFLAGS="-flto=thin -fuse-ld=lld"
+
+RUN export CFLAGS="-fPIC -O3"
+RUN export CXXFLAGS="-fPIC -frtti -fexceptions -O3"
+RUN export LDFLAGS="-fPIC -Wl,--undefined-version -L/root/prefix/lib"
 
 RUN dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
     && dnf install -y xz bzip2 unzip clang wget redhat-lsb-core doxygen python-devel nano git java-$JAVA_VERSION-openjdk\
@@ -64,6 +68,8 @@ ENV PREFIX=${CMAKE_INSTALL_PREFIX}
 ENV PATH=$PATH:/root/Android/cmdline-tools/latest/bin/
 ENV PATH=$PATH:/root/Android/ndk/$NDK_VERSION/
 ENV PATH=$PATH:/root/Android/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/linux-x86_64/bin/
+#ENV PATH=$PATH:/root/Android/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/21/
+#ENV PATH=$PATH:/root/Android/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include
 ENV PATH=$PATH:/root/prefix/
 
 # Patch it to ensure gcc is never ever never used
@@ -75,6 +81,8 @@ RUN ln -s $NDK_TRIPLET$API-clang $TOOLCHAIN/$NDK_TRIPLET-gcc
 RUN ln -s $NDK_TRIPLET$API-clang++ $TOOLCHAIN/$NDK_TRIPLET-g++
 
 RUN export PKG_CONFIG_LIBDIR="/root/prefix/lib/pkgconfig"
+RUN export CC="$NDK_TRIPLET$API-clang"
+RUN export CXX="$NDK_TRIPLET$API-clang++"
 
 ENV COMMON_CMAKE_ARGS="\
 -DCMAKE_TOOLCHAIN_FILE=/root/Android/ndk/$NDK_VERSION/build/cmake/android.toolchain.cmake \
@@ -86,14 +94,13 @@ ENV COMMON_CMAKE_ARGS="\
 -DCMAKE_CXX_FLAGS=-DMYGUI_DONT_REPLACE_NULLPTR \
 -DANDROID_ALLOW_UNDEFINED_VERSION_SCRIPT_SYMBOLS=ON \
 -DCMAKE_SHARED_LINKER_FLAGS=$LDFLAGS \
+-DCMAKE_LINKER=$NDK_TRIPLET$API-ld \
 -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
 -DCMAKE_DEBUG_POSTFIX= \
 -DCMAKE_INSTALL_PREFIX=/root/prefix/ \
 -DCMAKE_FIND_ROOT_PATH=$PREFIX"
 
 ENV COMMON_AUTOCONF_FLAGS="--enable-static --disable-shared --prefix=/root/prefix/"
-
-ENV WRAPPER="CC=$NDK_TRIPLET$API-clang CXX=$NDK_TRIPLET$API-clang++ LDFLAGS=-flto=thin -fuse-ld=lld"
 
 ENV NDK_BUILD_FLAGS="\
 NDK_PROJECT_PATH=. \
@@ -182,7 +189,8 @@ ENV MYGUI_FLAGS="\
 -DMYGUI_BUILD_TOOLS=OFF \
 -DMYGUI_BUILD_PLUGINS=OFF \
 -DMYGUI_DONT_USE_OBSOLETE=ON \
--DMYGUI_STATIC=ON"
+-DMYGUI_STATIC=ON \
+-DFREETYPE_FT2BUILD_INCLUDE_DIR=/root/prefix/include/freetype2/"
 
 ENV LIBXML_FLAGS="\
 -DBUILD_SHARED_LIBS=OFF \
@@ -273,15 +281,15 @@ PREFIX=$HOME/build/LuaJIT-$LUAJIT_VERSION"
 
 # Setup LIBICU
 ENV PREFIX=$HOME/build/icu-release-$LIBICU_VERSION
-#RUN mkdir -p $HOME/build/icu-release-$LIBICU_VERSION && cd $_ && $WRAPPER $HOME/src/icu-release-70-1/icu4c/source/configure $COMMON_AUTOCONF_FLAGS $LIBICU_FLAGS && $WRAPPER make -j $(nproc) check_PROGRAMS= bin_PROGRAMS= && $WRAPPER make install check_PROGRAMS= bin_PROGRAMS=
+RUN mkdir -p $HOME/build/icu-release-$LIBICU_VERSION && cd $_ && $HOME/src/icu-release-70-1/icu4c/source/configure $COMMON_AUTOCONF_FLAGS $LIBICU_FLAGS && make -j $(nproc) check_PROGRAMS= bin_PROGRAMS= && make install check_PROGRAMS= bin_PROGRAMS=
 
 # Setup ZLIB_VERSION
-#ENV PREFIX=$HOME/build/zlib-13
-#RUN wget -c https://github.com/madler/zlib/archive/refs/tags/v$ZLIB_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ &&  cd $HOME/src/zlib-$ZLIB_VERSION && mkdir -p $HOME/build/zlib-$ZLIB_VERSION && cd $_ && cmake $HOME/src/zlib-$ZLIB_VERSION $COMMON_CMAKE_ARGS && make -j $(nproc) && make install
+ENV PREFIX=$HOME/build/zlib-$ZLIB_VERSION
+RUN wget -c https://github.com/madler/zlib/archive/refs/tags/v$ZLIB_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && cd $HOME/src/zlib-$ZLIB_VERSION && wget https://github.com/madler/zlib/commit/01253ecd7e0a01d311670f2d03c61b82fc12d338.patch -O - | git apply && mkdir -p $HOME/build/zlib-$ZLIB_VERSION && cd $_ && cmake $HOME/src/zlib-$ZLIB_VERSION $COMMON_CMAKE_ARGS && make -j $(nproc) && make install
 
 # Setup LIBJPEG_TURBO_VERSION
 ENV PREFIX=$HOME/build/libjpeg-turbo-$LIBJPEG_TURBO_VERSION
-#RUN wget -c https://sourceforge.net/projects/libjpeg-turbo/files/$LIBJPEG_TURBO_VERSION/libjpeg-turbo-$LIBJPEG_TURBO_VERSION.tar.gz  -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/libjpeg-turbo-$LIBJPEG_TURBO_VERSION && cd $_ && $WRAPPER $HOME/src/libjpeg-turbo-$LIBJPEG_TURBO_VERSION/configure $COMMON_AUTOCONF_FLAGS --without-simd && $WRAPPER make -j $(nproc) PROGRAMS= && $WRAPPER make install-libLTLIBRARIES install-data-am
+RUN wget -c https://sourceforge.net/projects/libjpeg-turbo/files/$LIBJPEG_TURBO_VERSION/libjpeg-turbo-$LIBJPEG_TURBO_VERSION.tar.gz  -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/libjpeg-turbo-$LIBJPEG_TURBO_VERSION && cd $_ && $WRAPPER $HOME/src/libjpeg-turbo-$LIBJPEG_TURBO_VERSION/configure $COMMON_AUTOCONF_FLAGS --without-simd && make -j $(nproc) PROGRAMS= && make install-libLTLIBRARIES install-data-am
 
 # Setup LIBPNG_VERSION
 #ENV PREFIX=$HOME/build/libpng-$LIBPNG_VERSION 
@@ -289,37 +297,45 @@ ENV PREFIX=$HOME/build/libjpeg-turbo-$LIBJPEG_TURBO_VERSION
 
 # Setup FREETYPE2_VERSION
 ENV PREFIX=$HOME/build/freetype-$FREETYPE2_VERSION
-#RUN wget -c https://download.savannah.gnu.org/releases/freetype/freetype-$FREETYPE2_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/freetype-$FREETYPE2_VERSION && cd $_ && $WRAPPER $HOME/src/freetype-$FREETYPE2_VERSION/configure $COMMON_AUTOCONF_FLAGS --with-png=no && $WRAPPER make -j $(nproc) && $WRAPPER make install
+RUN wget -c https://download.savannah.gnu.org/releases/freetype/freetype-$FREETYPE2_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/freetype-$FREETYPE2_VERSION && cd $_ && $HOME/src/freetype-$FREETYPE2_VERSION/configure $COMMON_AUTOCONF_FLAGS --with-png=no && make -j $(nproc) && make install
 
 # Setup OPENAL_VERSION
 ENV PREFIX=$HOME/build/openal-soft-$OPENAL_VERSION
-#RUN wget -c https://github.com/kcat/openal-soft/archive/$OPENAL_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/openal-soft-$OPENAL_VERSION && cd $_ && $WRAPPER cmake $HOME/src/openal-soft-$OPENAL_VERSION $COMMON_CMAKE_ARGS $OPENAL_FLAGS && $WRAPPER make -j $(nproc) && $WRAPPER make install
+RUN wget -c https://github.com/kcat/openal-soft/archive/$OPENAL_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/openal-soft-$OPENAL_VERSION && cd $_ && cmake $HOME/src/openal-soft-$OPENAL_VERSION $COMMON_CMAKE_ARGS $OPENAL_FLAGS && make -j $(nproc) && make install
 
 # Setup BOOST_VERSION
 ENV PREFIX=$HOME/build/boost-$BOOST_VERSION
-#RUN wget -c https://github.com/boostorg/boost/releases/download/boost-$BOOST_VERSION/boost-$BOOST_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/boost-$BOOST_VERSION && $WRAPPER ./bootstrap.sh && $WRAPPER ./b2 $BOOST_FLAGS
-#ENV PATH=$PATH:/root/build/boost-$BOOST_VERSION/stage/lib/
-#RUN llvm-ranlib /root/build/boost-$BOOST_VERSION/stage/lib/libboost_filesystem.a
-#RUN llvm-ranlib /root/build/boost-$BOOST_VERSION/stage/lib/libboost_program_options.a
-#RUN llvm-ranlib /root/build/boost-$BOOST_VERSION/stage/lib/libboost_system.a
-#RUN llvm-ranlib /root/build/boost-$BOOST_VERSION/stage/lib/libboost_iostreams.a
-#RUN llvm-ranlib /root/build/boost-$BOOST_VERSION/stage/lib/libboost_regex.a
+RUN wget -c https://github.com/boostorg/boost/releases/download/boost-$BOOST_VERSION/boost-$BOOST_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/boost-$BOOST_VERSION && ./bootstrap.sh && ./b2 $BOOST_FLAGS
+
+# Set Boost include and library paths
+ENV BOOST_INCLUDE_PATH=/root/build/boost-$BOOST_VERSION
+ENV BOOST_LIB_PATH=/root/build/boost-$BOOST_VERSION/stage/lib
+
+# Add Boost paths to compiler and linker paths
+ENV CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:$BOOST_INCLUDE_PATH
+ENV LIBRARY_PATH=$LIBRARY_PATH:$BOOST_LIB_PATH
+
+RUN llvm-ranlib /root/build/boost-$BOOST_VERSION/stage/lib/libboost_filesystem.a
+RUN llvm-ranlib /root/build/boost-$BOOST_VERSION/stage/lib/libboost_program_options.a
+RUN llvm-ranlib /root/build/boost-$BOOST_VERSION/stage/lib/libboost_system.a
+RUN llvm-ranlib /root/build/boost-$BOOST_VERSION/stage/lib/libboost_iostreams.a
+RUN llvm-ranlib /root/build/boost-$BOOST_VERSION/stage/lib/libboost_regex.a
 
 # Setup FFMPEG_VERSION
 ENV PREFIX=$HOME/build/ffmpeg-$FFMPEG_VERSION
-#RUN wget -c http://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.bz2 -O - | tar -xjf - -C $HOME/src/ && mkdir -p $HOME/build/ffmpeg-$FFMPEG_VERSION && cd $_ && $WRAPPER $HOME/src/ffmpeg-$FFMPEG_VERSION/configure $FFMPEG_FLAGS && $WRAPPER make -j $(nproc) && $WRAPPER make install
+RUN wget -c http://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.bz2 -O - | tar -xjf - -C $HOME/src/ && mkdir -p $HOME/build/ffmpeg-$FFMPEG_VERSION && cd $_ && $HOME/src/ffmpeg-$FFMPEG_VERSION/configure $FFMPEG_FLAGS && make -j $(nproc) && make install
 
 # Setup SDL2_VERSION
 ENV PREFIX=$HOME/build/SDL2-$SDL2_VERSION
-#RUN wget -c https://www.libsdl.org/release/SDL2-$SDL2_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/SDL2-$SDL2_VERSION && $WRAPPER ndk-build $NDK_BUILD_FLAGS
+RUN wget -c https://www.libsdl.org/release/SDL2-$SDL2_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/SDL2-$SDL2_VERSION && ndk-build $NDK_BUILD_FLAGS
 
 # Setup BULLET_VERSION
 ENV PREFIX=$HOME/build/bullet3-$BULLET_VERSION
-#RUN wget -c https://github.com/bulletphysics/bullet3/archive/$BULLET_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/bullet3-$BULLET_VERSION && cd $_ && $WRAPPER cmake $HOME/src/bullet3-$BULLET_VERSION $COMMON_CMAKE_ARGS $BULLET_FLAGS && $WRAPPER make -j $(nproc) && $WRAPPER make install
+RUN wget -c https://github.com/bulletphysics/bullet3/archive/$BULLET_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/bullet3-$BULLET_VERSION && cd $_ && cmake $HOME/src/bullet3-$BULLET_VERSION $COMMON_CMAKE_ARGS $BULLET_FLAGS && make -j $(nproc) && make install
 
 # Setup GL4ES_VERSION
 ENV PREFIX=$HOME/build/gl4es-$GL4ES_VERSION
-#RUN wget -c https://github.com/sisah2/gl4es/archive/$GL4ES_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/gl4es-$GL4ES_VERSION && $WRAPPER ndk-build $NDK_BUILD_FLAGS && cp libs/$ABI/libGL.so /root/prefix/lib/ && cp -r $HOME/build/gl4es-$GL4ES_VERSION/include /root/prefix/include/gl4es/ && cp -r $HOME/build/gl4es-$GL4ES_VERSION/include /root/prefix/
+RUN wget -c https://github.com/sisah2/gl4es/archive/$GL4ES_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/gl4es-$GL4ES_VERSION && ndk-build $NDK_BUILD_FLAGS && cp libs/$ABI/libGL.so /root/prefix/lib/ && cp -r $HOME/build/gl4es-$GL4ES_VERSION/include /root/prefix/include/gl4es/ && cp -r $HOME/build/gl4es-$GL4ES_VERSION/include /root/prefix/
 
 # Setup MYGUI_VERSION
 #ENV PREFIX=$HOME/build/mygui-MyGUI$MYGUI_VERSION
@@ -327,7 +343,7 @@ ENV PREFIX=$HOME/build/gl4es-$GL4ES_VERSION
 
 # Setup LZ4_VERSION
 ENV PREFIX=$HOME/build/lz4-$LZ4_VERSION
-#RUN wget -c https://github.com/lz4/lz4/archive/v$LZ4_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/lz4-$LZ4_VERSION && cd $_ && $WRAPPER cmake $HOME/src/lz4-$LZ4_VERSION/build/cmake/ $COMMON_CMAKE_ARGS -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF && $WRAPPER make -j $(nproc) && $WRAPPER make install
+RUN wget -c https://github.com/lz4/lz4/archive/v$LZ4_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/lz4-$LZ4_VERSION && cd $_ && cmake $HOME/src/lz4-$LZ4_VERSION/build/cmake/ $COMMON_CMAKE_ARGS -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF && make -j $(nproc) && make install
 
 # Setup LUAJIT_VERSION
 ENV PREFIX=$HOME/build/LuaJIT-$LUAJIT_VERSION
@@ -352,7 +368,7 @@ TARGET_STRIP=$TOOLCHAIN/llvm-strip
 
 # Setup LIBXML_VERSION
 ENV PREFIX=$HOME/build/libxml2-$LIBXML2_VERSION
-#RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v$LIBXML2_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/libxml2-$LIBXML2_VERSION && cd $_ && $WRAPPER cmake $HOME/src/libxml2-$LIBXML2_VERSION $COMMON_CMAKE_ARGS $LIBXML_FLAGS && $WRAPPER make -j $(nproc) && $WRAPPER make install
+RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v$LIBXML2_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/libxml2-$LIBXML2_VERSION && cd $_ && cmake $HOME/src/libxml2-$LIBXML2_VERSION $COMMON_CMAKE_ARGS $LIBXML_FLAGS && make -j $(nproc) && make install
 
 # Setup LIBCOLLADA_VERSION
 #ENV PREFIX=$HOME/build/collada-dom-$COLLADA_DOM_VERSION
