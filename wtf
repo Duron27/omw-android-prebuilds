@@ -63,8 +63,8 @@ ENV AR=$TOOLCHAIN/bin/llvm-ar
 ENV LD=$TOOLCHAIN/bin/ld
 ENV RANLIB=$TOOLCHAIN/bin/llvm-ranlib
 ENV STRIP=$TOOLCHAIN/bin/llvm-strip
-ENV PKG_CONFIG_LIBDIR=/root/prefix/lib/pkgconfig
-RUN export PKG_CONFIG_LIBDIR=/root/prefix/lib/pkgconfig
+ENV PKG_CONFIG_LIBDIR=/root/prefix/lib/
+RUN PKG_CONFIG_PATH=/root/prefix/lib/pkgconfig
 
 #COPY --chmod=0755 openmw-android /openmw-android
 ENV PATH=$PATH:/root/Android/cmdline-tools/latest/bin/
@@ -208,8 +208,7 @@ ENV COLLADA_FLAGS=" \
     -DBoost_USE_STATIC_LIBS=ON \
     -DBoost_USE_STATIC_RUNTIME=ON \
     -DBoost_NO_SYSTEM_PATHS=ON \
-    -DBoost_NO_BOOST_CMAKE=ON \
-    -DBoost_INCLUDE_DIR=/root/prefix/include/ \
+    -DBoost_INCLUDE_DIR=/root/prefix/include \
     -DHAVE_STRTOQ=0 \
     -DUSE_FILE32API=1 \
     -DCMAKE_CXX_FLAGS=-std=gnu++11"
@@ -374,6 +373,8 @@ RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v$LIBXML2_VERSION
 # Setup LIBCOLLADA_VERSION
 ENV PREFIX=$HOME/build/collada-dom-$COLLADA_DOM_VERSION
 #RUN wget -c https://github.com/rdiankov/collada-dom/archive/v$COLLADA_DOM_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/collada-dom-$COLLADA_DOM_VERSION && cd $_ && cmake $HOME/src/collada-dom-$COLLADA_DOM_VERSION $COMMON_CMAKE_ARGS $COLLADA_FLAGS
+
+#collada-dom-2.5.0]# cmake $HOME/src/collada-dom-$COLLADA_DOM_VERSION $COMMON_CMAKE_ARGS -DBoost_USE_STATIC_LIBS=ON -DBoost_USE_STATIC_RUNTIME=ON -DBoost_NO_SYSTEM_PATHS=ON -DBoost_INCLUDE_DIR=/root/prefix/include -DHAVE_STRTOQ=0 -DUSE_FILE32API=1 -DCMAKE_CXX_FLAGS=-std=gnu++11
 
 # Setup OPENSCENEGRAPH_VERSION
 #ENV PREFIX=$HOME/build/osg-$OSG_VERSION
