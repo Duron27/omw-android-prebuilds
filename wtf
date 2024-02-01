@@ -208,7 +208,8 @@ ENV COLLADA_FLAGS=" \
     -DBoost_USE_STATIC_LIBS=ON \
     -DBoost_USE_STATIC_RUNTIME=ON \
     -DBoost_NO_SYSTEM_PATHS=ON \
-    -DBoost_INCLUDE_DIR=/root/prefix/include \
+    -DBoost_NO_BOOST_CMAKE=ON \
+    -DBoost_INCLUDE_DIR=/root/prefix/include/ \
     -DHAVE_STRTOQ=0 \
     -DUSE_FILE32API=1 \
     -DCMAKE_CXX_FLAGS=-std=gnu++11"
@@ -321,8 +322,8 @@ RUN wget -c http://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.bz2 -O - | tar
 # Setup SDL2_VERSION
 ENV PREFIX=$HOME/build/SDL2-$SDL2_VERSION
 RUN wget -c https://www.libsdl.org/release/SDL2-$SDL2_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/SDL2-$SDL2_VERSION && ndk-build $NDK_BUILD_FLAGS 
-#RUN cp $PREFIX/libs/$ABI/libSDL2.so /root/prefix/lib/
-#RUN cp -rf $HOME/build/SDL2-$SDL2_VERSION/include /root/prefix/
+RUN cp $HOME/build/SDL2-$SDL2_VERSION/libs/$ABI/libSDL2.so /root/prefix/lib/
+RUN cp -rf $HOME/build/SDL2-$SDL2_VERSION/include /root/prefix/
 
 # Setup BULLET_VERSION
 ENV PREFIX=$HOME/build/bullet3-$BULLET_VERSION
