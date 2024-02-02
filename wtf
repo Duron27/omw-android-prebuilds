@@ -36,7 +36,7 @@ ENV SPECIAL_LDFLAGS="-flto=thin -fuse-ld=lld"
 
 RUN dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
     && dnf install -y xz bzip2 unzip clang which wget redhat-lsb-core uriparser-devel doxygen python-devel nano git java-$JAVA_VERSION-openjdk\
-    gcc-c++ tinyxml-devel bzip2-devel cmake
+    gcc-c++ tinyxml-devel bzip2-devel cmake minizip-devel
 
 ENV JAVA_HOME='/usr/lib/jvm/java-17-openjdk-17.0.9.0.9-3.fc39.x86_64'
 
@@ -290,6 +290,8 @@ RUN mkdir -p $HOME/build/icu-release-$LIBICU_VERSION && cd $_ && $WRAPPER && $HO
 # Setup ZLIB_VERSION
 RUN wget -c https://github.com/madler/zlib/archive/refs/tags/v$ZLIB_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && cd $HOME/src/zlib-$ZLIB_VERSION && wget https://github.com/madler/zlib/commit/01253ecd7e0a01d311670f2d03c61b82fc12d338.patch -O - | git apply && mkdir -p $HOME/build/zlib-$ZLIB_VERSION && cd $_ && $WRAPPER && cmake $HOME/src/zlib-$ZLIB_VERSION $COMMON_CMAKE_ARGS && $WRAPPER && make -j $(nproc) && $WRAPPER && make install
 
+#RUN wget -c https://github.com/madler/zlib/archive/refs/tags/v1.2.11.tar.gz -O - | tar -xz -C $HOME/src/ && cd $HOME/src/zlib-1.2.11 && $WRAPPER && cmake . $COMMON_CMAKE_ARGS && $WRAPPER && make -j $(nproc) && $WRAPPER && make install
+
 # Setup LIBJPEG_TURBO_VERSION
 RUN wget -c https://sourceforge.net/projects/libjpeg-turbo/files/$LIBJPEG_TURBO_VERSION/libjpeg-turbo-$LIBJPEG_TURBO_VERSION.tar.gz  -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/libjpeg-turbo-$LIBJPEG_TURBO_VERSION && cd $_ && $WRAPPER && $HOME/src/libjpeg-turbo-$LIBJPEG_TURBO_VERSION/configure $COMMON_AUTOCONF_FLAGS --without-simd && $WRAPPER && make -j $(nproc) check_PROGRAMS= bin_PROGRAMS= && $WRAPPER && make install check_PROGRAMS= bin_PROGRAMS=
 
@@ -359,7 +361,7 @@ RUN wget -c https://github.com/luaJit/LuaJIT/archive/v$LUAJIT_VERSION.tar.gz -O 
 RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v$LIBXML2_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/libxml2-$LIBXML2_VERSION && cd $_ && $WRAPPER && cmake $HOME/src/libxml2-$LIBXML2_VERSION $COMMON_CMAKE_ARGS $LIBXML_FLAGS && $WRAPPER && make -j $(nproc) && $WRAPPER && make install
 
 # Setup LIBCOLLADA_VERSION
-#RUN wget -c https://github.com/rdiankov/collada-dom/archive/v$COLLADA_DOM_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/src/collada-dom-$COLLADA_DOM_VERSION/build && cd $_ && $WRAPPER && cmake .. $COMMON_CMAKE_ARGS $COLLADA_FLAGS
+#RUN wget -c https://github.com/rdiankov/collada-dom/archive/v$COLLADA_DOM_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/src/collada-dom-$COLLADA_DOM_VERSION/build && cd $_ && $WRAPPER && cmake .. $COMMON_CMAKE_ARGS $COLLADA_FLAGS -DCMAKE_CXX_FLAGS='-DMYGUI_DONT_REPLACE_NULLPTR -I/root/prefix/include/ -Dauto_ptr=unique_ptr -std=gnu++11' -DCMAKE_C_FLAGS='-DMYGUI_DONT_REPLACE_NULLPTR -I/root/prefix/include/'
 # keep this flag -DBoost_DEBUG=ON
 
 # Setup OPENSCENEGRAPH_VERSION
