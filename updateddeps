@@ -100,6 +100,8 @@ ENV COMMON_CMAKE_ARGS=" \
     -DCMAKE_DEBUG_POSTFIX= \
     -DCMAKE_INSTALL_PREFIX=$PREFIX \
     -DCMAKE_FIND_ROOT_PATH=$PREFIX \
+    -D CMAKE_CXX_COMPILER=aarch64-linux-android21-clang++ \
+    -D CMAKE_CC_COMPILER=aarch64-linux-android21-clang \
     -DHAVE_LD_VERSION_SCRIPT=OFF"
 
 ENV COMMON_AUTOCONF_FLAGS="--enable-static --disable-shared --prefix=$PREFIX --host $TARGET64"
@@ -133,9 +135,8 @@ ENV BOOST_FLAGS=" \
     --with-system \
     --with-iostreams \
     --with-regex \
-    --ignore-site-config \
     toolset=clang \
-    architecture=arm64 \
+    architecture=arm \
     address-model=64 \
     cflags= \
     abi=aapcs \
@@ -214,7 +215,7 @@ ENV COLLADA_FLAGS=" \
     -DBoost_USE_STATIC_LIBS=ON \
     -DBoost_USE_STATIC_RUNTIME=ON \
     -DBoost_NO_SYSTEM_PATHS=ON \
-    -DBoost_INCLUDE_DIR=$PREFIX/include \
+    -DBoost_INCLUDE_DIR=$PREFIX/include/boost/ \
     -DHAVE_STRTOQ=0 \
     -DUSE_FILE32API=1 \
     -DCMAKE_CXX_FLAGS=-Dauto_ptr=unique_ptr"
@@ -309,16 +310,14 @@ RUN wget -c https://github.com/kcat/openal-soft/archive/$OPENAL_VERSION.tar.gz -
 # Setup BOOST_VERSION
 #RUN wget -c https://github.com/boostorg/boost/releases/download/boost-$BOOST_VERSION/boost-$BOOST_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/boost-$BOOST_VERSION && $WRAPPER && ./bootstrap.sh --prefix=$PREFIX && $WRAPPER && ./b2 --prefix=$PREFIX $BOOST_FLAGS
 
-#wget -c https://github.com/boostorg/boost/releases/download/boost-$BOOST_VERSION/boost-$BOOST_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/boost-$BOOST_VERSION && $WRAPPER && ./bootstrap.sh --prefix=$PREFIX --with-toolset=clang
-
-#./b2 --prefix=$PREFIX $BOOST_FLAGS --cxx=$TOOLCHAIN/bin/$NDK_TRIPLET$API-clang++
+RUN wget -c https://github.com/boostorg/boost/releases/download/boost-$BOOST_VERSION/boost-$BOOST_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/boost-$BOOST_VERSION && $WRAPPER && ./bootstrap.sh --prefix=$PREFIX --with-toolset=clang && echo using clang : arm : aarch64-linux-android21-clang++ ; >> project-config.jam && ./b2 --prefix=$PREFIX $BOOST_FLAGS --cxx=$TOOLCHAIN/bin/$NDK_TRIPLET$API-clang++
 
 
-#RUN $RANLIB $PREFIX/lib/libboost_filesystem.a
-#RUN $RANLIB $PREFIX/lib/libboost_program_options.a
-#RUN $RANLIB $PREFIX/lib/libboost_system.a
-#RUN $RANLIB $PREFIX/lib/libboost_iostreams.a
-#RUN $RANLIB $PREFIX/lib/libboost_regex.a
+RUN $RANLIB $PREFIX/lib/libboost_filesystem.a
+RUN $RANLIB $PREFIX/lib/libboost_program_options.a
+RUN $RANLIB $PREFIX/lib/libboost_system.a
+RUN $RANLIB $PREFIX/lib/libboost_iostreams.a
+RUN $RANLIB $PREFIX/lib/libboost_regex.a
 
 # Setup FFMPEG_VERSION
 RUN wget -c http://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.bz2 -O - | tar -xjf - -C $HOME/src/ && mkdir -p $HOME/build/ffmpeg-$FFMPEG_VERSION && cd $_ && $WRAPPER && $HOME/src/ffmpeg-$FFMPEG_VERSION/configure $FFMPEG_FLAGS && $WRAPPER && make -j $(nproc) && $WRAPPER && make install
@@ -368,7 +367,8 @@ RUN wget -c https://github.com/luaJit/LuaJIT/archive/v$LUAJIT_VERSION.tar.gz -O 
 RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v$LIBXML2_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/libxml2-$LIBXML2_VERSION && cd $_ && $WRAPPER && cmake $HOME/src/libxml2-$LIBXML2_VERSION $COMMON_CMAKE_ARGS $LIBXML_FLAGS && $WRAPPER && make -j $(nproc) && $WRAPPER && make install
 
 # Setup LIBCOLLADA_VERSION
-#RUN wget -c https://github.com/rdiankov/collada-dom/archive/v$COLLADA_DOM_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && cd $HOME/src/collada-dom-$COLLADA_DOM_VERSION && wget https://raw.githubusercontent.com/Duron27/Dockers/experimental/libcollada-minizip-fix.patch && patch -ruN dom/external-libs/minizip-1.1/ioapi.h < libcollada-minizip-fix.patch && mkdir -p $HOME/src/collada-dom-$COLLADA_DOM_VERSION/build && cd $_ && $WRAPPER && cmake .. $COMMON_CMAKE_ARGS $COLLADA_FLAGS -DCMAKE_CXX_FLAGS=-std=gnu++11
+#RUN wget -c https://github.com/rdiankov/collada-dom/archive/v$COLLADA_DOM_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && cd $HOME/src/collada-dom-$COLLADA_DOM_VERSION && wget https://raw.githubusercontent.com/Duron27/Dockers/experimental/libcollada-minizip-fix.patch && patch -ruN dom/external-libs/minizip-1.1/ioapi.h < libcollada-minizip-fix.patch && mkdir -p $HOME/src/collada-dom-$COLLADA_DOM_VERSION/build && cd $_ && $WRAPPER && cmake .. $COMMON_CMAKE_ARGS $COLLADA_FLAGS
+
 
 # Setup OPENSCENEGRAPH_VERSION
 #RUN wget -c https://github.com/openmw/osg/archive/$OSG_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/osg-$OSG_VERSION
