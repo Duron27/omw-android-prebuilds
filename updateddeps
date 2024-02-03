@@ -35,7 +35,7 @@ ENV LDFLAGS="-fPIC -Wl,--undefined-version"
 ENV SPECIAL_LDFLAGS="-flto=thin -fuse-ld=lld"
 
 RUN dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
-    && dnf install -y xz bzip2 unzip clang which wget redhat-lsb-core doxygen python-devel nano git java-$JAVA_VERSION-openjdk\
+    && dnf install -y xz bzip2 unzip which wget redhat-lsb-core doxygen python-devel nano git java-$JAVA_VERSION-openjdk\
     gcc-c++ cmake
 
 ENV JAVA_HOME='/usr/lib/jvm/java-17-openjdk-17.0.9.0.9-3.fc39.x86_64'
@@ -60,7 +60,8 @@ RUN mkdir -p $HOME/build/icu-host-build && cd $_ && $HOME/src/icu-release-70-1/i
 ENV API=21
 ENV ABI=arm64-v8a
 ENV NDK_TRIPLET=aarch64-linux-android
-ENV TARGET=armv7a-linux-androideabi
+ENV TARGET64=aarch64-linux-android
+ENV TARGET32=armv7a-linux-androideabi
 ENV TOOLCHAIN=/root/Android/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/linux-x86_64
 ENV AR=$TOOLCHAIN/bin/llvm-ar
 ENV LD=$TOOLCHAIN/bin/ld
@@ -101,7 +102,7 @@ ENV COMMON_CMAKE_ARGS=" \
     -DCMAKE_FIND_ROOT_PATH=$PREFIX \
     -DHAVE_LD_VERSION_SCRIPT=OFF"
 
-ENV COMMON_AUTOCONF_FLAGS="--enable-static --disable-shared --prefix=$PREFIX --host=$NDK_TRIPLET$API"
+ENV COMMON_AUTOCONF_FLAGS="--enable-static --disable-shared --prefix=$PREFIX --host $TARGET64"
 
 ENV NDK_BUILD_FLAGS=" \
     NDK_PROJECT_PATH=. \
@@ -134,9 +135,10 @@ ENV BOOST_FLAGS=" \
     --with-regex \
     --ignore-site-config \
     toolset=clang \
-    architecture=arm \
+    architecture=arm64 \
     address-model=64 \
     cflags= \
+    abi=aapcs \
     cxxflags= \
     variant=release \
     target-os=android \
@@ -305,13 +307,18 @@ RUN wget -c https://download.savannah.gnu.org/releases/freetype/freetype-$FREETY
 RUN wget -c https://github.com/kcat/openal-soft/archive/$OPENAL_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/openal-soft-$OPENAL_VERSION && cd $_ && $WRAPPER && cmake $HOME/src/openal-soft-$OPENAL_VERSION $COMMON_CMAKE_ARGS $OPENAL_FLAGS && $WRAPPER && make -j $(nproc) && $WRAPPER && make install
 
 # Setup BOOST_VERSION
-RUN wget -c https://github.com/boostorg/boost/releases/download/boost-$BOOST_VERSION/boost-$BOOST_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/boost-$BOOST_VERSION && $WRAPPER32 && ./bootstrap.sh --prefix=$PREFIX && $WRAPPER32 && ./b2 --prefix=$PREFIX $BOOST_FLAGS
+#RUN wget -c https://github.com/boostorg/boost/releases/download/boost-$BOOST_VERSION/boost-$BOOST_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/boost-$BOOST_VERSION && $WRAPPER && ./bootstrap.sh --prefix=$PREFIX && $WRAPPER && ./b2 --prefix=$PREFIX $BOOST_FLAGS
 
-RUN $RANLIB $PREFIX/lib/libboost_filesystem.a
-RUN $RANLIB $PREFIX/lib/libboost_program_options.a
-RUN $RANLIB $PREFIX/lib/libboost_system.a
-RUN $RANLIB $PREFIX/lib/libboost_iostreams.a
-RUN $RANLIB $PREFIX/lib/libboost_regex.a
+#wget -c https://github.com/boostorg/boost/releases/download/boost-$BOOST_VERSION/boost-$BOOST_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/boost-$BOOST_VERSION && $WRAPPER && ./bootstrap.sh --prefix=$PREFIX --with-toolset=clang
+
+#./b2 --prefix=$PREFIX $BOOST_FLAGS --cxx=$TOOLCHAIN/bin/$NDK_TRIPLET$API-clang++
+
+
+#RUN $RANLIB $PREFIX/lib/libboost_filesystem.a
+#RUN $RANLIB $PREFIX/lib/libboost_program_options.a
+#RUN $RANLIB $PREFIX/lib/libboost_system.a
+#RUN $RANLIB $PREFIX/lib/libboost_iostreams.a
+#RUN $RANLIB $PREFIX/lib/libboost_regex.a
 
 # Setup FFMPEG_VERSION
 RUN wget -c http://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.bz2 -O - | tar -xjf - -C $HOME/src/ && mkdir -p $HOME/build/ffmpeg-$FFMPEG_VERSION && cd $_ && $WRAPPER && $HOME/src/ffmpeg-$FFMPEG_VERSION/configure $FFMPEG_FLAGS && $WRAPPER && make -j $(nproc) && $WRAPPER && make install
@@ -328,7 +335,7 @@ RUN wget -c https://github.com/bulletphysics/bullet3/archive/$BULLET_VERSION.tar
 RUN wget -c https://github.com/sisah2/gl4es/archive/$GL4ES_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/gl4es-$GL4ES_VERSION && $WRAPPER && ndk-build $NDK_BUILD_FLAGS && cp libs/$ABI/libGL.so /root/prefix/lib/ && cp -r $HOME/build/gl4es-$GL4ES_VERSION/include /root/prefix/include/gl4es/ && cp -r $HOME/build/gl4es-$GL4ES_VERSION/include /root/prefix/
 
 # Setup MYGUI_VERSION
-RUN wget -c https://github.com/MyGUI/mygui/archive/MyGUI$MYGUI_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/mygui-MyGUI$MYGUI_VERSION && cd $_ && $WRAPPER && cmake $HOME/src/mygui-MyGUI$MYGUI_VERSION $COMMON_CMAKE_ARGS $MYGUI_FLAGS && $WRAPPER && make -j $(nproc) && $WRAPPER && make install
+#RUN wget -c https://github.com/MyGUI/mygui/archive/MyGUI$MYGUI_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/mygui-MyGUI$MYGUI_VERSION && cd $_ && $WRAPPER && cmake $HOME/src/mygui-MyGUI$MYGUI_VERSION $COMMON_CMAKE_ARGS $MYGUI_FLAGS && $WRAPPER && make -j $(nproc) && $WRAPPER && make install
 
 # Setup LZ4_VERSION
 RUN wget -c https://github.com/lz4/lz4/archive/v$LZ4_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/lz4-$LZ4_VERSION && cd $_ && $WRAPPER && cmake $HOME/src/lz4-$LZ4_VERSION/build/cmake/ $COMMON_CMAKE_ARGS -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF && $WRAPPER && make -j $(nproc) && $WRAPPER && make install
@@ -361,9 +368,7 @@ RUN wget -c https://github.com/luaJit/LuaJIT/archive/v$LUAJIT_VERSION.tar.gz -O 
 RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v$LIBXML2_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/libxml2-$LIBXML2_VERSION && cd $_ && $WRAPPER && cmake $HOME/src/libxml2-$LIBXML2_VERSION $COMMON_CMAKE_ARGS $LIBXML_FLAGS && $WRAPPER && make -j $(nproc) && $WRAPPER && make install
 
 # Setup LIBCOLLADA_VERSION
-#RUN wget -c https://github.com/rdiankov/collada-dom/archive/v$COLLADA_DOM_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && cd $HOME/src/collada-dom-$COLLADA_DOM_VERSION && wget https://raw.githubusercontent.com/Duron27/Dockers/experimental/libcollada-minizip-fix.patch && patch -ruN dom/external-libs/minizip-1.1/ioapi.h < libcollada-minizip-fix.patch && mkdir -p $HOME/src/collada-dom-$COLLADA_DOM_VERSION/build && cd $_ && $WRAPPER && cmake .. $COMMON_CMAKE_ARGS $COLLADA_FLAGS
-
-
+#RUN wget -c https://github.com/rdiankov/collada-dom/archive/v$COLLADA_DOM_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && cd $HOME/src/collada-dom-$COLLADA_DOM_VERSION && wget https://raw.githubusercontent.com/Duron27/Dockers/experimental/libcollada-minizip-fix.patch && patch -ruN dom/external-libs/minizip-1.1/ioapi.h < libcollada-minizip-fix.patch && mkdir -p $HOME/src/collada-dom-$COLLADA_DOM_VERSION/build && cd $_ && $WRAPPER && cmake .. $COMMON_CMAKE_ARGS $COLLADA_FLAGS -DCMAKE_CXX_FLAGS=-std=gnu++11
 
 # Setup OPENSCENEGRAPH_VERSION
 #RUN wget -c https://github.com/openmw/osg/archive/$OSG_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/osg-$OSG_VERSION
