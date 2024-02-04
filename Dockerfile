@@ -54,7 +54,7 @@ RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "ndk;$NDK_VERSION" -
 
 #Setup ICU for the Host
 RUN mkdir -p $HOME/build/icu-host-build && cd $_ && $HOME/src/icu-release-70-1/icu4c/source/configure --disable-tests --disable-samples --disable-icuio --disable-extras CC="gcc" CXX="g++" && make -j $(nproc)
- 
+
 # NDK Settings
 ENV API=21
 ENV ABI=arm64-v8a
@@ -67,6 +67,7 @@ ENV LD=$TOOLCHAIN/bin/ld
 ENV RANLIB=$TOOLCHAIN/bin/llvm-ranlib
 ENV STRIP=$TOOLCHAIN/bin/llvm-strip
 
+COPY --chmod=0755 boost.zip /
 #COPY --chmod=0755 openmw-android /openmw-android
 ENV PATH=$PATH:/root/Android/cmdline-tools/latest/bin/
 ENV PATH=$PATH:/root/Android/ndk/$NDK_VERSION/
@@ -100,7 +101,7 @@ ENV COMMON_CMAKE_ARGS=" \
     -DCMAKE_CC_COMPILER=aarch64-linux-android21-clang \
     -DHAVE_LD_VERSION_SCRIPT=OFF"
 
-ENV COMMON_AUTOCONF_FLAGS="--enable-static --disable-shared --prefix=$PREFIX --host $TARGET64"
+ENV COMMON_AUTOCONF_FLAGS="--enable-static --disable-shared --prefix=$PREFIX --host=$NDK_TRIPLET --build=x86_64-linux-gnu CC=aarch64-linux-android21-clang CXX=aarch64-linux-android21-clang++"
 
 ENV NDK_BUILD_FLAGS=" \
     NDK_PROJECT_PATH=. \
@@ -136,7 +137,7 @@ ENV BOOST_FLAGS=" \
     address-model=64 \
     cflags= \
     abi=aapcs \
-    cxxflags= \
+    cxxflags=--target=$NDK_TRIPLET \
     variant=release \
     target-os=android \
     threading=multi \
@@ -292,7 +293,7 @@ RUN wget -c https://download.savannah.gnu.org/releases/freetype/freetype-$FREETY
 RUN wget -c https://github.com/kcat/openal-soft/archive/$OPENAL_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/openal-soft-$OPENAL_VERSION && cd $_ && cmake $HOME/src/openal-soft-$OPENAL_VERSION $COMMON_CMAKE_ARGS $OPENAL_FLAGS && make -j $(nproc) && make install
 
 # Setup BOOST_VERSION
-RUN wget -c https://github.com/boostorg/boost/releases/download/boost-$BOOST_VERSION/boost-$BOOST_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/boost-$BOOST_VERSION && $WRAPPER && ./bootstrap.sh --prefix=$PREFIX --with-toolset=clang && echo using clang : arm : aarch64-linux-android21-clang++ ; >> project-config.jam && ./b2 --prefix=$PREFIX $BOOST_FLAGS --cxx=$TOOLCHAIN/bin/$NDK_TRIPLET$API-clang++
+RUN wget -c https://github.com/boostorg/boost/releases/download/boost-$BOOST_VERSION/boost-$BOOST_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/boost-$BOOST_VERSION && ./bootstrap.sh --prefix=$PREFIX --with-toolset=clang && echo using clang : arm : aarch64-linux-android21-clang++ ; >> project-config.jam && ./b2 --prefix=$PREFIX $BOOST_FLAGS --cxx=$TOOLCHAIN/bin/$NDK_TRIPLET$API-clang++
 
 RUN $RANLIB $PREFIX/lib/libboost_filesystem.a
 RUN $RANLIB $PREFIX/lib/libboost_program_options.a
