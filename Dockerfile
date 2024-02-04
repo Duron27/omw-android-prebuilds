@@ -2,7 +2,7 @@
 FROM fedora:39
 
 #Set build type : release, debug
-ENV BUILD_TYPE=debug
+ENV BUILD_TYPE=release
 
 # App versions - change settings here
 ENV LIBJPEG_TURBO_VERSION=1.5.3
@@ -29,10 +29,9 @@ ENV PLATFORM_TOOLS_VERSION=29.0.0
 ENV JAVA_VERSION=17
 
 # Global C, CXX and LDFLAGS
-ENV CFLAGS="-fPIC"
-ENV CXXFLAGS="-fPIC -frtti -fexceptions"
+ENV CFLAGS="-fPIC -O3"
+ENV CXXFLAGS="-fPIC -frtti -fexceptions -O3"
 ENV LDFLAGS="-fPIC -Wl,--undefined-version"
-ENV SPECIAL_LDFLAGS="-flto=thin -fuse-ld=lld"
 
 RUN dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
     && dnf install -y xz bzip2 unzip which wget redhat-lsb-core doxygen python-devel nano git java-$JAVA_VERSION-openjdk\
