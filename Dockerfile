@@ -351,7 +351,7 @@ RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v$LIBXML2_VERSION
 #RUN wget -c https://github.com/rdiankov/collada-dom/archive/v$COLLADA_DOM_VERSION.tar.gz -O - | tar -xz -C $HOME/src/ && cd $HOME/src/collada-dom-$COLLADA_DOM_VERSION && wget https://raw.githubusercontent.com/Duron27/Dockers/experimental/libcollada-minizip-fix.patch && patch -ruN dom/external-libs/minizip-1.1/ioapi.h < libcollada-minizip-fix.patch && mkdir -p $HOME/src/collada-dom-$COLLADA_DOM_VERSION/build && cd $_ && cmake .. $COMMON_CMAKE_ARGS $COLLADA_FLAGS
 
 # Setup OPENSCENEGRAPH_VERSION
-#RUN wget -c https://github.com/openmw/osg/archive/$OSG_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/osg-$OSG_VERSION && cmake $COMMON_CMAKE_ARGS $OSG_FLAGS && make -j $(nproc) && make install
+RUN wget -c https://github.com/openmw/osg/archive/$OSG_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/osg-$OSG_VERSION && cmake $COMMON_CMAKE_ARGS $OSG_FLAGS && make -j $(nproc) && make install
 
 # Setup OPENMW_VERSION
 #RUN wget -c https://github.com/OpenMW/openmw/archive/$OPENMW_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/openmw-$OPENMW_VERSION
