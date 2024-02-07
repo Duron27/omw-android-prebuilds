@@ -47,11 +47,9 @@ RUN wget https://dl.google.com/android/repository/commandlinetools-linux-${SDK_C
 RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses
 RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "ndk;${NDK_VERSION}" --channel=0
 #RUN wget https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip
-
+COPY --chmod=0755 patches /root/patches
 #Setup ICU for the Host
 RUN mkdir -p $HOME/build/icu-host-build && cd $_ && $HOME/src/icu-release-70-1/icu4c/source/configure --disable-tests --disable-samples --disable-icuio --disable-extras CC="gcc" CXX="g++" && make -j $(nproc)
-
-#RUN dnf remove -y gcc g++  --noautoremove
 
 #COPY --chmod=0755 openmw-android /openmw-android
 ENV PATH=$PATH:/root/Android/cmdline-tools/latest/bin/
@@ -66,7 +64,7 @@ ENV ABI=arm64-v8a
 ENV NDK_TRIPLET=aarch64-linux-android
 ENV TOOLCHAIN=/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64
 ENV AR=llvm-ar
-ENV LD=ld
+ENV LD=/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin/ld
 ENV RANLIB=llvm-ranlib
 ENV STRIP=llvm-strip
 ENV CC=${NDK_TRIPLET}-gcc
@@ -88,8 +86,8 @@ ENV COMMON_CMAKE_ARGS=" \
     -DANDROID_STL=c++_shared \
     -DANDROID_CPP_FEATURES= \
     -DANDROID_ALLOW_UNDEFINED_VERSION_SCRIPT_SYMBOLS=ON \
-    -DCMAKE_C_FLAGS= \
-    -DCMAKE_CXX_FLAGS= \
+    -DCMAKE_C_FLAGS=-I/root/prefix/ \
+    -DCMAKE_CXX_FLAGS=-I/root/prefix/\
     -DCMAKE_SHARED_LINKER_FLAGS=$LDFLAGS \
     -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
     -DCMAKE_DEBUG_POSTFIX= \
@@ -232,6 +230,11 @@ ENV OSG_FLAGS=" \
     -DBUILD_OSG_PLUGIN_PNG=ON \
     -DBUILD_OSG_PLUGIN_FREETYPE=ON \
     -DOSG_CPP_EXCEPTIONS_AVAILABLE=TRUE \
+    -DJPEG_INCLUDE_DIR=${PREFIX}/include/ \
+	-DPNG_INCLUDE_DIR=${PREFIX}/include/ \
+	-DFREETYPE_DIR=${PREFIX} \
+    -DCOLLADA_INCLUDE_DIR=${PREFIX}/include/collada-dom2.5 \
+    -DCOLLADA_DIR=${PREFIX}/include/collada-dom2.5/1.4 \
     -DOSG_GL1_AVAILABLE=ON \
     -DOSG_GL2_AVAILABLE=OFF \
     -DOSG_GL3_AVAILABLE=OFF \
@@ -246,20 +249,9 @@ ENV OSG_FLAGS=" \
     -DBUILD_OSG_APPLICATIONS=OFF \
     -DBUILD_OSG_PLUGINS_BY_DEFAULT=OFF \
     -DBUILD_OSG_DEPRECATED_SERIALIZERS=OFF \
-    -DOPENGL_INCLUDE_DIR=${PREFIX}/include/gl4es/ \
-    -DCMAKE_CXX_FLAGS=-std=gnu++11"
+    -DOPENGL_INCLUDE_DIR=${PREFIX}/include/gl4es/"
 
-#patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/osg/disable-polygon-offset.patch \
-#    patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/osg/remove-lib-prefix-from-plugins.patch \
-#    patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/osg/fix-freetype-include-dirs.patch \
-#    patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/osg/0001-Replace-Atomic-impl-with-std-atomic.patch \
-#    patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/osg/0002-BufferObject-make-numClients-atomic.patch \
-#    patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/osg/0004-IncrementalCompileOperation-wrap-some-stuff-in-atomi.patch \
-#    patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/osg/remove-zlib-dependency.patch \
-#    patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/osg/force-add-plugins.patch \
-#    patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/osg/dae_collada.patch \
-#    patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/osg/psa.patch \
-#    patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/osg/0005-CullSettings-make-inheritanceMask-atomic-to-silence-.patch
+ENV OSG_PATCHES='git apply /root/patches/osg/*.patch'
 
 ENV OPENMW_FLAGS=" \
     -DBUILD_BSATOOL=0 \
@@ -278,24 +270,10 @@ ENV OPENMW_FLAGS=" \
     -DOPENMW_USE_SYSTEM_ICU=ON \
     -DOSG_STATIC=TRUE"
 
-#patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/openmw/gamma.patch \
-#    patch -d <SOURCE_DIR> -p1 -t -N -R < ${CMAKE_SOURCE_DIR}/patches/openmw/sdlfix.patch \
-#	patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/openmw/cmakefix.patch \
-#	patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/openmw/0001-loadingscreen-disable-for-now.patch \
-#    patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/openmw/0009-windowmanagerimp-always-show-mouse-when-possible-pat.patch \
-#    patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/openmw/0010-android-fix-context-being-lost-on-app-minimize.patch \
-#	#patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/openmw/0012-components-misc-stringops-use-boost-format-instead-o.patch \
-#	patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/openmw/fix-build.patch \
-#    patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/openmw/psa.patch \
-#	#patch -d <SOURCE_DIR> -p1 -t -N < ${CMAKE_SOURCE_DIR}/patches/openmw/refraction-fix.patch \
-#	cp ${CMAKE_SOURCE_DIR}/patches/openmw/android_main.cpp <SOURCE_DIR>/apps/openmw/android_main.cpp
+ENV OMW_PATCHES='git apply /root/patches/openmw/*.patch'
+#cp ${CMAKE_SOURCE_DIR}/patches/openmw/android_main.cpp <SOURCE_DIR>/apps/openmw/android_main.cpp"
 
-#RUN export CC=${NDK_TRIPLET}${API}-clang CXX=${NDK_TRIPLET}${API}-clang++
-
-#ENV LUAJIT_FLAGS="CROSS=${NDK_TRIPLET}${API}- STATIC_CC=${NDK_TRIPLET}${API}-clang DYNAMIC_CC='${NDK_TRIPLET}${API}-clang\ -fPIC' TARGET_LD=${NDK_TRIPLET}${API}-clang TARGET_AR='llvm-ar\ rcus' TARGET_STRIP=llvm-strip"
-
-# Setup Bzip2
-#RUN cd $HOME/src/ && git clone https://github.com/libarchive/bzip2 && cd bzip2 && cmake . ${COMMON_CMAKE_ARGS} && make -j $(nproc) && make install
+ENV LUAJIT_FLAGS=CROSS=${NDK_TRIPLET}${API}- STATIC_CC=${NDK_TRIPLET}${API}-clang DYNAMIC_CC="${NDK_TRIPLET}${API}-clang -fPIC" TARGET_LD=${NDK_TRIPLET}${API}-clang TARGET_AR="llvm-ar rcus" TARGET_STRIP=llvm-strip
 
 # Setup LIBICU
 RUN mkdir -p $HOME/build/icu-release-${LIBICU_VERSION} && cd $_ && $HOME/src/icu-release-70-1/icu4c/source/configure ${COMMON_AUTOCONF_FLAGS} ${LIBICU_FLAGS} && make -j $(nproc) check_PROGRAMS= bin_PROGRAMS= && make install check_PROGRAMS= bin_PROGRAMS=
@@ -330,8 +308,6 @@ RUN $RANLIB ${PREFIX}/lib/libboost_system.a
 RUN $RANLIB ${PREFIX}/lib/libboost_iostreams.a
 RUN $RANLIB ${PREFIX}/lib/libboost_regex.a
 
-#RUN mkdir -p /root/prefix/lib && cd $_ && unzip /boost.zip
-
 # Setup FFMPEG_VERSION
 RUN wget -c http://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 -O - | tar -xjf - -C $HOME/src/ && mkdir -p $HOME/build/ffmpeg-${FFMPEG_VERSION} && cd $_ && $HOME/src/ffmpeg-${FFMPEG_VERSION}/configure ${FFMPEG_FLAGS} && make -j $(nproc) && make install
 
@@ -353,8 +329,7 @@ RUN wget -c https://github.com/MyGUI/mygui/archive/MyGUI${MYGUI_VERSION}.tar.gz 
 RUN wget -c https://github.com/lz4/lz4/archive/v${LZ4_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/lz4-${LZ4_VERSION} && cd $_ && cmake $HOME/src/lz4-${LZ4_VERSION}/build/cmake/ ${COMMON_CMAKE_ARGS} -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF && make -j $(nproc) && make install
 
 # Setup LUAJIT_VERSION
-RUN wget -c https://github.com/luaJit/LuaJIT/archive/v${LUAJIT_VERSION}.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/LuaJIT-${LUAJIT_VERSION} && make PREFIX=${PREFIX} amalg CROSS=${NDK_TRIPLET}${API}- STATIC_CC=${NDK_TRIPLET}${API}-clang DYNAMIC_CC='${NDK_TRIPLET}${API}-clang -fPIC' TARGET_LD=${NDK_TRIPLET}${API}-clang TARGET_AR='llvm-ar rcus' TARGET_STRIP=llvm-strip && make install PREFIX=${PREFIX} CROSS=${NDK_TRIPLET}${API}- STATIC_CC=${NDK_TRIPLET}${API}-clang DYNAMIC_CC='${NDK_TRIPLET}${API}-clang -fPIC' TARGET_LD=${NDK_TRIPLET}${API}-clang TARGET_AR='llvm-ar rcus' TARGET_STRIP=llvm-strip
-#RUN bash -c "rm /root/prefix/lib/libluajit*.so*"
+RUN wget -c https://github.com/luaJit/LuaJIT/archive/v${LUAJIT_VERSION}.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/LuaJIT-${LUAJIT_VERSION} && make PREFIX=${PREFIX} amalg CROSS=${NDK_TRIPLET}${API}- STATIC_CC=${NDK_TRIPLET}${API}-clang DYNAMIC_CC='${NDK_TRIPLET}${API}-clang -fPIC' TARGET_LD=${NDK_TRIPLET}${API}-clang TARGET_AR='${AR} rcus' TARGET_STRIP=${STRIP} && make install PREFIX=${PREFIX} CROSS=${NDK_TRIPLET}${API}- STATIC_CC=${NDK_TRIPLET}${API}-clang DYNAMIC_CC='${NDK_TRIPLET}${API}-clang -fPIC' TARGET_LD=${NDK_TRIPLET}${API}-clang TARGET_AR='${AR} rcus' TARGET_STRIP=${STRIP}
 
 # Setup LIBXML_VERSION
 RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v${LIBXML2_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && mkdir -p $HOME/build/libxml2-${LIBXML2_VERSION} && cd $_ && cmake $HOME/src/libxml2-${LIBXML2_VERSION} ${COMMON_CMAKE_ARGS} ${LIBXML_FLAGS} && make -j $(nproc) && make install
@@ -363,7 +338,7 @@ RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v${LIBXML2_VERSIO
 RUN wget -c https://github.com/rdiankov/collada-dom/archive/v${COLLADA_DOM_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && cd $HOME/src/collada-dom-${COLLADA_DOM_VERSION} && wget https://raw.githubusercontent.com/Duron27/Dockers/experimental/libcollada-minizip-fix.patch && patch -ruN dom/external-libs/minizip-1.1/ioapi.h < libcollada-minizip-fix.patch && mkdir -p $HOME/src/collada-dom-${COLLADA_DOM_VERSION}/build && cd $_ && cmake .. ${COMMON_CMAKE_ARGS} ${COLLADA_FLAGS} && make -j $(nproc) && make install
 
 # Setup OPENSCENEGRAPH_VERSION
-RUN wget -c https://github.com/openmw/osg/archive/$OSG_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && mkdir -p $HOME/build/osg-${OSG_VERSION}/build && cd $_ && cmake .. ${COMMON_CMAKE_ARGS} ${OSG_FLAGS} && make -j $(nproc) && make install
+#RUN wget -c https://github.com/openmw/osg/archive/$OSG_VERSION.tar.gz -O - | tar -xz -C $HOME/build/ && mkdir -p $HOME/build/osg-${OSG_VERSION}/build && cd $_ && cmake .. ${COMMON_CMAKE_ARGS} ${OSG_FLAGS} -DCMAKE_CXX_FLAGS=-std=gnu++11\ -I${PREFIX}/include/collada-dom2.5/1.4 && make -j $(nproc) && make install
 
 # Setup OPENMW_VERSION
 #RUN wget -c https://github.com/OpenMW/openmw/archive/${OPENMW_VERSION}.tar.gz -O - | tar -xz -C $HOME/build/ && cd $HOME/build/openmw-${OPENMW_VERSION}
