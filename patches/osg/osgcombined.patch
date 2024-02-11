@@ -1,13 +1,39 @@
-From e382015913fb2d7f0edc669409252028b719cf97 Mon Sep 17 00:00:00 2001
-From: Ilya Zhuravlev <whatever@xyz.is>
-Date: Sun, 10 Feb 2019 15:28:36 -0500
-Subject: [PATCH 1/5] Replace Atomic impl with std::atomic
+diff --git a/CMakeModules/FindCOLLADA.cmake b/CMakeModules/FindCOLLADA.cmake
+index 7c7d29053..82e45af3c 100644
+--- a/CMakeModules/FindCOLLADA.cmake
++++ b/CMakeModules/FindCOLLADA.cmake
+@@ -19,7 +19,7 @@ SET( COLLADA_ENV_VAR_AVAILABLE $ENV{COLLADA_DIR} )
+ IF ( COLLADA_ENV_VAR_AVAILABLE )
+     SET(COLLADA_DOM_ROOT "$ENV{COLLADA_DIR}/dom" CACHE PATH "Location of Collada DOM directory" FORCE)
+ ELSE ()
+-    SET(COLLADA_DOM_ROOT "${ACTUAL_3DPARTY_DIR}/include/1.4/dom" CACHE PATH "Location of Collada DOM directory" FORCE)
++    SET(COLLADA_DOM_ROOT "${ACTUAL_3DPARTY_DIR}/include/collada-dom2.5/1.4/dom" CACHE PATH "Location of Collada DOM directory" FORCE)
+ ENDIF()
+ 
 
----
- include/OpenThreads/Atomic        | 169 ++----------------------------
- src/OpenThreads/common/Atomic.cpp |   2 +
- 2 files changed, 11 insertions(+), 160 deletions(-)
-
+@@ -89,6 +89,7 @@ FIND_PATH(COLLADA_INCLUDE_DIR dae.h
+     /opt/include
+     /usr/freeware/include
+     ${ACTUAL_3DPARTY_DIR}/include
++    ${ACTUAL_3DPARTY_DIR}/include/collada-dom2.5/
+ )
+ 
+ FIND_LIBRARY(COLLADA_DYNAMIC_LIBRARY
+diff --git a/CMakeModules/OsgMacroUtils.cmake b/CMakeModules/OsgMacroUtils.cmake
+index dcc1fe37d..e270490bf 100644
+--- a/CMakeModules/OsgMacroUtils.cmake
++++ b/CMakeModules/OsgMacroUtils.cmake
+@@ -301,6 +301,10 @@ MACRO(SETUP_PLUGIN PLUGIN_NAME)
+         ADD_LIBRARY(${TARGET_TARGETNAME} STATIC ${TARGET_SRC} ${TARGET_H})
+     ENDIF(DYNAMIC_OPENSCENEGRAPH)
+ 
++    # XXX: remove the "lib" prefix e.g. "libosgdb_bmp.a" => "osgdb_bmp.a"
++    # for some reason this is only a problem on android
++    SET_TARGET_PROPERTIES(${TARGET_TARGETNAME} PROPERTIES PREFIX "")
++
+     IF(MSVC)
+         IF(NOT CMAKE24)
+             SET_OUTPUT_DIR_PROPERTY_260(${TARGET_TARGETNAME} "${OSG_PLUGINS}")        # Sets the ouput to be /osgPlugin-X.X.X ; also ensures the /Debug /Release are removed
 diff --git a/include/OpenThreads/Atomic b/include/OpenThreads/Atomic
 index ba6723354..da8db7227 100644
 --- a/include/OpenThreads/Atomic
@@ -253,6 +279,82 @@ index ba6723354..da8db7227 100644
  }
  
  #endif // !defined(_OPENTHREADS_ATOMIC_USE_LIBRARY_ROUTINES)
+diff --git a/include/osg/BufferObject b/include/osg/BufferObject
+index 3ec365544..cc4128aac 100644
+--- a/include/osg/BufferObject
++++ b/include/osg/BufferObject
+@@ -22,6 +22,7 @@
+ #include <osg/FrameStamp>
+ #include <osg/GLObjects>
+ 
++#include <atomic>
+ #include <iosfwd>
+ #include <list>
+ #include <map>
+@@ -590,7 +591,7 @@ protected:
+         osg::ref_ptr<BufferObject>      _bufferObject;
+         osg::ref_ptr<ModifiedCallback>  _modifiedCallback;
+ 
+-        unsigned int _numClients;
++        std::atomic<unsigned> _numClients;
+ };
+ 
+ 
+diff --git a/include/osg/Hint b/include/osg/Hint
+index 274af53ce..222f74761 100644
+--- a/include/osg/Hint
++++ b/include/osg/Hint
+@@ -68,6 +68,8 @@ public:
+ 
+         virtual void apply(State& state) const;
+ 
++        static void GL4ES_SavePSA() { glHint(0xA10F, 0xA10F); };
++
+ protected:
+ 
+ 
+diff --git a/include/osg/PolygonOffset b/include/osg/PolygonOffset
+index 15ad397e9..613222a03 100644
+--- a/include/osg/PolygonOffset
++++ b/include/osg/PolygonOffset
+@@ -57,10 +57,6 @@ class OSG_EXPORT PolygonOffset : public StateAttribute
+         virtual bool getModeUsage(StateAttribute::ModeUsage& usage) const
+         {
+             usage.usesMode(GL_POLYGON_OFFSET_FILL);
+-#if !defined(OSG_GLES1_AVAILABLE) && !defined(OSG_GLES2_AVAILABLE)
+-            usage.usesMode(GL_POLYGON_OFFSET_LINE);
+-            usage.usesMode(GL_POLYGON_OFFSET_POINT);
+-#endif
+             return true;
+         }
+ 
+diff --git a/include/osgUtil/IncrementalCompileOperation b/include/osgUtil/IncrementalCompileOperation
+index 25f141976..a4ffa3356 100644
+--- a/include/osgUtil/IncrementalCompileOperation
++++ b/include/osgUtil/IncrementalCompileOperation
+@@ -14,6 +14,8 @@
+ #ifndef OSGUTIL_INCREMENTALCOMPILEOPERATOR
+ #define OSGUTIL_INCREMENTALCOMPILEOPERATOR
+ 
++#include <atomic>
++
+ #include <osgUtil/GLObjectsVisitor>
+ #include <osg/Geometry>
+ 
+@@ -305,11 +307,11 @@ class OSGUTIL_EXPORT IncrementalCompileOperation : public osg::GraphicsOperation
+ 
+         double                              _targetFrameRate;
+         double                              _minimumTimeAvailableForGLCompileAndDeletePerFrame;
+-        unsigned int                        _maximumNumOfObjectsToCompilePerFrame;
++        std::atomic<unsigned>                        _maximumNumOfObjectsToCompilePerFrame;
+         double                              _flushTimeRatio;
+         double                              _conservativeTimeRatio;
+ 
+-        unsigned int                        _currentFrameNumber;
++        std::atomic<unsigned>                        _currentFrameNumber;
+         unsigned int                        _compileAllTillFrameNumber;
+ 
+         osg::ref_ptr<osg::Geometry>         _forceTextureDownloadGeometry;
 diff --git a/src/OpenThreads/common/Atomic.cpp b/src/OpenThreads/common/Atomic.cpp
 index 21c336435..84fec8e78 100644
 --- a/src/OpenThreads/common/Atomic.cpp
@@ -266,6 +368,51 @@ index 21c336435..84fec8e78 100644
  // Non inline implementations for two special cases:
  // * win32
  // * i386 gcc
--- 
-2.19.2
+diff --git a/src/osgPlugins/CMakeLists.txt b/src/osgPlugins/CMakeLists.txt
+index 812550412..2ac62d977 100644
+--- a/src/osgPlugins/CMakeLists.txt
++++ b/src/osgPlugins/CMakeLists.txt
+@@ -161,9 +161,13 @@ IF(NOT OSG_GLES1_AVAILABLE AND NOT OSG_GLES2_AVAILABLE)
+     ENDIF()
+ ENDIF()
+ 
+-IF(COLLADA_FOUND AND OSG_CPP_EXCEPTIONS_AVAILABLE)
++#fix me
++#IF(COLLADA_FOUND AND OSG_CPP_EXCEPTIONS_AVAILABLE)
++#    ADD_PLUGIN_DIRECTORY(dae)
++#ENDIF()
++
++    SET(COLLADA_DOM_2_4_OR_LATER TRUE)
+     ADD_PLUGIN_DIRECTORY(dae)
+-ENDIF()
+ 
+ IF(FBX_FOUND AND OSG_CPP_EXCEPTIONS_AVAILABLE)
+     ADD_PLUGIN_DIRECTORY(fbx)
 
+diff --git a/CMakeModules/OsgAndroidMacroUtils.cmake b/CMakeModules/OsgAndroidMacroUtils.cmake
+index 50c22e0f1..e8453208f 100644
+--- a/CMakeModules/OsgAndroidMacroUtils.cmake
++++ b/CMakeModules/OsgAndroidMacroUtils.cmake
+@@ -163,7 +163,7 @@ MACRO(ANDROID_3RD_PARTY)
+     )
+     #set(ENV{AND_OSG_LIB_NAMES} "$ENV{AND_OSG_LIB_NAMES} libft2")
+     #set(ENV{AND_OSG_LIB_PATHS} "$ENV{AND_OSG_LIB_PATHS}include ${FREETYPE_DIR}/Android.mk \n")
+-    set(FREETYPE_INCLUDE_DIRS ${FREETYPE_DIR}/include ${FREETYPE_DIR}/include/freetype/config)
++    set(FREETYPE_INCLUDE_DIRS ${FREETYPE_DIR}/include ${FREETYPE_DIR}/include/freetype2)
+     if(FREETYPE_DIR)
+         message(STATUS "FREETYPE found ${FREETYPE_DIR}" )
+         set(FREETYPE_FOUND "Yes")
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index c98408d84dc..cf63bf2448a 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -731,7 +731,7 @@ OPTION(BUILD_OSG_PLUGINS "Build OSG Plugins - Disable for compile testing exampl
+ mark_as_advanced(BUILD_OSG_PLUGINS)
+ ################################################################################
+ # 3rd Party Dependency Stuff
+-OPTION(OSG_FIND_3RD_PARTY_DEPS "Enable to search for Android or Windows dependencies in ./3rdparty" ON)
++OPTION(OSG_FIND_3RD_PARTY_DEPS "Enable to search for Android or Windows dependencies in ./3rdparty" OFF)
+
+ IF(WIN32 AND NOT ANDROID AND OSG_FIND_3RD_PARTY_DEPS)
+     INCLUDE(Find3rdPartyDependencies)
