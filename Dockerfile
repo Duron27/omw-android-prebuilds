@@ -48,6 +48,8 @@ RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses
 RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "ndk;${NDK_VERSION}" --channel=0
 #RUN wget https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip
 COPY --chmod=0755 patches /root/patches
+COPY --chmod=0755 android /root/android
+
 #Setup ICU for the Host
 RUN mkdir -p ${HOME}/build/icu-host-build && cd $_ && ${HOME}/src/icu-release-70-1/icu4c/source/configure --disable-tests --disable-samples --disable-icuio --disable-extras CC="gcc" CXX="g++" && make -j $(nproc)
 
@@ -322,7 +324,7 @@ RUN wget -c https://github.com/openmw/osg/archive/${OSG_VERSION}.tar.gz -O - | t
         -DBUILD_OSG_DEPRECATED_SERIALIZERS=OFF \
         -DOSG_FIND_3RD_PARTY_DEPS=OFF \
         -DOPENGL_INCLUDE_DIR=${PREFIX}/include/gl4es/ \
-        -DCMAKE_CXX_FLAGS=-std=gnu++11\ -I${PREFIX}/include/freetype2/ && \
+        -DCMAKE_CXX_FLAGS=-Dauto_ptr=unique_ptr\ -I${PREFIX}/include/freetype2/ && \
     make -j $(nproc) && make install
 
 
@@ -340,7 +342,7 @@ RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/open
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/sdlfixreversed.patch
 RUN patch ${HOME}/src/openmw-${OPENMW_VERSION}/CMakeLists.txt < /root/patches/openmw/openmw_ignoreffmpegversion.patch
 
-#cp ${CMAKE_SOURCE_DIR}/patches/openmw/android_main.cpp <SOURCE_DIR>/apps/openmw/android_main.cpp"
+RUN cp /root/patches/openmw/android_main.cpp /root/android/app/android_main.cpp
 
 RUN cd ${HOME}/src/openmw-${OPENMW_VERSION}/build && cmake .. \
         ${COMMON_CMAKE_ARGS} \
@@ -361,8 +363,17 @@ RUN cd ${HOME}/src/openmw-${OPENMW_VERSION}/build && cmake .. \
         -DOPENAL_INCLUDE_DIR=${PREFIX}/include/AL/ \
         -DBullet_INCLUDE_DIR=${PREFIX}/include/bullet/ \
         -DOSG_STATIC=TRUE \
-        -DMyGUI_LIBRARY=${PREFIX}/lib/libMyGUIEngineStatic.a
+        -DMyGUI_LIBRARY=${PREFIX}/lib/libMyGUIEngineStatic.a && \
+    make -j $(nproc)
 
+# Finalize
+RUN rm -rf /root/android/app/wrap/ && rm -rf /root/android/app/src/main/jniLibs/${ABI}/ && mkdir -p /root/android/app/src/main/jniLibs/${ABI}/
 
-RUN cd ${HOME}/src/openmw-${OPENMW_VERSION}/build && make -j $(nproc)
+# libopenmw.so is a special case
+RUN find /root/src/openmw-${OPENMW_VERSION}/ -iname "libopenmw.so" -exec cp "{}" /root/android/app/src/main/jniLibs/${ABI}/libopenmw.so \;
 
+# copy over libs we compiled
+RUN cp ${PREFIX}/lib/{libopenal,libSDL2,libGL,libcollada-dom2.5-dp}.so /root/android/app/src/main/jniLibs/${ABI}/
+
+# copy over libc++_shared
+RUN find ${TOOLCHAIN}/sysroot/usr/lib/${NDK_TRIPLET} -iname "libc++_shared.so" -exec cp "{}" /root/android/app/src/main/jniLibs/${ABI}/ \;
