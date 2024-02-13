@@ -29,13 +29,12 @@ ENV PLATFORM_TOOLS_VERSION=29.0.0
 ENV JAVA_VERSION=17
 
 RUN dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
-    && dnf install -y xz p7zip bzip2 libstdc++-devel glibc-devel unzip which wget redhat-lsb-core python-devel doxygen nano gcc-c++ git java-${JAVA_VERSION}-openjdk\
+    && dnf install -y xz p7zip bzip2 libstdc++-devel glibc-devel unzip which wget redhat-lsb-core python-devel doxygen nano gcc-c++ git java-11-openjdk java-${JAVA_VERSION}-openjdk\
     cmake
 
 ENV JAVA_HOME /usr/lib/jvm/java-17-openjdk-17.0.9.0.9-3.fc39.x86_64
-
-RUN mkdir -p ${HOME}/build
-RUN mkdir -p ${HOME}/downloads
+ENV ANDROID_SDK_ROOT=/root/Android/cmdline-tools/latest/bin
+ENV ANDROID_HOME=/root/Android
 RUN mkdir -p ${HOME}/prefix
 RUN mkdir -p ${HOME}/src
 
@@ -46,14 +45,20 @@ RUN cd ${HOME}/src && wget https://github.com/unicode-org/icu/archive/refs/tags/
 RUN wget https://dl.google.com/android/repository/commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip && unzip commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip && mkdir -p ${HOME}/Android/cmdline-tools/ && mv cmdline-tools/ ${HOME}/Android/cmdline-tools/latest && rm commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip
 RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses
 RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "ndk;${NDK_VERSION}" --channel=0
+RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install emulator
+RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-28"
+RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "platform-tools"
+RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "build-tools;29.0.2"
+RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses
+
 #RUN wget https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip
+
 COPY --chmod=0755 patches /root/patches
-COPY --chmod=0755 android /root/android
+COPY --chmod=0755 payload /root/payload
 
 #Setup ICU for the Host
-RUN mkdir -p ${HOME}/build/icu-host-build && cd $_ && ${HOME}/src/icu-release-70-1/icu4c/source/configure --disable-tests --disable-samples --disable-icuio --disable-extras CC="gcc" CXX="g++" && make -j $(nproc)
+RUN mkdir -p ${HOME}/src/icu-host-build && cd $_ && ${HOME}/src/icu-release-70-1/icu4c/source/configure --disable-tests --disable-samples --disable-icuio --disable-extras CC="gcc" CXX="g++" && make -j $(nproc)
 
-#COPY --chmod=0755 openmw-android /openmw-android
 ENV PATH=$PATH:/root/Android/cmdline-tools/latest/bin/
 ENV PATH=$PATH:/root/Android/ndk/${NDK_VERSION}/
 ENV PATH=$PATH:/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64
@@ -81,11 +86,6 @@ ENV LDFLAGS="-fPIC -Wl,--undefined-version"
 ENV COMMON_CMAKE_ARGS \
   "-DCMAKE_TOOLCHAIN_FILE=/root/Android/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake" \
   "-DANDROID_ABI=$ABI" \
-  "-DARCH=$ARCH" \
-  "-DNDK_TRIPLET=$NDK_TRIPLET" \
-  "-DABI=$ABI" \
-  "-DBOOST_ARCH=$BOOST_ARCH" \
-  "-DBOOST_ADDRESS_MODEL=$BOOST_ADDRESS_MODEL" \
   "-DANDROID_PLATFORM=android-${API}" \
   "-DANDROID_STL=c++_shared" \
   "-DANDROID_CPP_FEATURES=" \
@@ -110,41 +110,48 @@ ENV NDK_BUILD_FLAGS \
     "APP_ABI=${ABI}"
 
 # Setup LIBICU
-RUN mkdir -p ${HOME}/build/icu-release-${LIBICU_VERSION} && cd $_ && \
-    ${HOME}/src/icu-release-70-1/icu4c/source/configure \
+RUN mkdir -p ${HOME}/src/icu-${LIBICU_VERSION} && cd $_ && \
+    ${HOME}/src/icu-release-${LIBICU_VERSION}/icu4c/source/configure \
         ${COMMON_AUTOCONF_FLAGS} \
         --disable-tests \
         --disable-samples \
         --disable-icuio \
         --disable-extras \
-        --with-cross-build=/root/build/icu-host-build && \
+        --prefix=${PREFIX} \
+        --with-cross-build=/root/src/icu-host-build && \
     make -j $(nproc) check_PROGRAMS= bin_PROGRAMS= && \
     make install check_PROGRAMS= bin_PROGRAMS=
 
 # Setup ZLIB
 RUN wget -c https://github.com/madler/zlib/archive/refs/tags/v${ZLIB_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     mkdir -p ${HOME}/src/zlib-${ZLIB_VERSION}/build && cd $_ && \
-    cmake ${HOME}/src/zlib-${ZLIB_VERSION} ${COMMON_CMAKE_ARGS} && \
+    cmake ${HOME}/src/zlib-${ZLIB_VERSION} \
+        ${COMMON_CMAKE_ARGS} && \
     make -j $(nproc) && make install
 
 # Setup LIBJPEG_TURBO
 RUN wget -c https://sourceforge.net/projects/libjpeg-turbo/files/${LIBJPEG_TURBO_VERSION}/libjpeg-turbo-${LIBJPEG_TURBO_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     mkdir -p ${HOME}/src/libjpeg-turbo-${LIBJPEG_TURBO_VERSION}/build && cd $_ && \
-    ${HOME}/src/libjpeg-turbo-${LIBJPEG_TURBO_VERSION}/configure ${COMMON_AUTOCONF_FLAGS} --without-simd && \
+    ${HOME}/src/libjpeg-turbo-${LIBJPEG_TURBO_VERSION}/configure \
+        ${COMMON_AUTOCONF_FLAGS} \
+        --without-simd && \
     make -j $(nproc) check_PROGRAMS=bin_PROGRAMS= && \
     make install check_PROGRAMS=bin_PROGRAMS=
 
 # Setup LIBPNG
 RUN wget -c http://prdownloads.sourceforge.net/libpng/libpng-${LIBPNG_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     mkdir -p ${HOME}/src/libpng-${LIBPNG_VERSION}/build && cd $_ && \
-    ${HOME}/src/libpng-${LIBPNG_VERSION}/configure ${COMMON_AUTOCONF_FLAGS} && \
+        ${HOME}/src/libpng-${LIBPNG_VERSION}/configure \
+        ${COMMON_AUTOCONF_FLAGS} && \
     make -j $(nproc) check_PROGRAMS= bin_PROGRAMS= && \
     make install check_PROGRAMS= bin_PROGRAMS=
 
 # Setup FREETYPE2
 RUN wget -c https://download.savannah.gnu.org/releases/freetype/freetype-${FREETYPE2_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     mkdir -p ${HOME}/src/freetype-${FREETYPE2_VERSION}/build && cd $_ && \
-    ${HOME}/src/freetype-${FREETYPE2_VERSION}/configure ${COMMON_AUTOCONF_FLAGS} --with-png=no && \
+        ${HOME}/src/freetype-${FREETYPE2_VERSION}/configure \
+        ${COMMON_AUTOCONF_FLAGS} \
+        --with-png=no && \
     make -j $(nproc) && make install
 
 # Setup LIBXML
@@ -187,7 +194,7 @@ RUN $RANLIB ${PREFIX}/lib/libboost_iostreams.a
 
 # Setup FFMPEG_VERSION
 RUN wget -c http://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 -O - | tar -xjf - -C ${HOME}/src/ && \
-    mkdir -p ${HOME}/build/ffmpeg-${FFMPEG_VERSION} && cd $_ && \
+    mkdir -p ${HOME}/src/ffmpeg-${FFMPEG_VERSION} && cd $_ && \
     ${HOME}/src/ffmpeg-${FFMPEG_VERSION}/configure \
         --disable-asm \
         --disable-optimizations \
@@ -346,8 +353,7 @@ RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/open
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/psa.patch
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/sdlfixreversed.patch
 RUN patch ${HOME}/src/openmw-${OPENMW_VERSION}/CMakeLists.txt < /root/patches/openmw/openmw_ignoreffmpegversion.patch
-
-RUN cp /root/patches/openmw/android_main.cpp /root/android/app/android_main.cpp
+RUN cp /root/patches/openmw/android_main.cpp /root/src/openmw-${OPENMW_VERSION}/apps/openmw/android_main.cpp
 
 RUN cd ${HOME}/src/openmw-${OPENMW_VERSION}/build && cmake .. \
         ${COMMON_CMAKE_ARGS} \
@@ -372,13 +378,21 @@ RUN cd ${HOME}/src/openmw-${OPENMW_VERSION}/build && cmake .. \
     make -j $(nproc)
 
 # Finalize
-RUN rm -rf /root/android/app/wrap/ && rm -rf /root/android/app/src/main/jniLibs/${ABI}/ && mkdir -p /root/android/app/src/main/jniLibs/${ABI}/
+RUN rm -rf /root/payload/app/wrap/ && rm -rf /root/payload/app/src/main/jniLibs/${ABI}/ && mkdir -p /root/payload/app/src/main/jniLibs/${ABI}/
 
 # libopenmw.so is a special case
-RUN find /root/src/openmw-${OPENMW_VERSION}/ -iname "libopenmw.so" -exec cp "{}" /root/android/app/src/main/jniLibs/${ABI}/libopenmw.so \;
+RUN find /root/src/openmw-${OPENMW_VERSION}/ -iname "libopenmw.so" -exec cp "{}" /root/payload/app/src/main/jniLibs/${ABI}/libopenmw.so \;
 
 # copy over libs we compiled
-RUN cp ${PREFIX}/lib/{libopenal,libSDL2,libGL,libcollada-dom2.5-dp}.so /root/android/app/src/main/jniLibs/${ABI}/
+RUN cp ${PREFIX}/lib/{libopenal,libSDL2,libGL,libcollada-dom2.5-dp}.so /root/payload/app/src/main/jniLibs/${ABI}/
 
 # copy over libc++_shared
-RUN find ${TOOLCHAIN}/sysroot/usr/lib/${NDK_TRIPLET} -iname "libc++_shared.so" -exec cp "{}" /root/android/app/src/main/jniLibs/${ABI}/ \;
+RUN find ${TOOLCHAIN}/sysroot/usr/lib/${NDK_TRIPLET} -iname "libc++_shared.so" -exec cp "{}" /root/payload/app/src/main/jniLibs/${ABI}/ \;
+
+RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libopenal.so
+RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libSDL2.so
+RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libGL.so
+RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libcollada-dom2.5-dp.so
+RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libc++_shared.so
+
+#./gradlew assembleNightlyDebug -Dorg.gradle.java.home=/usr/lib/jvm/java-11-openjdk-11.0.22.0.7-1.fc39.x86_64
