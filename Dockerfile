@@ -81,6 +81,11 @@ ENV LDFLAGS="-fPIC -Wl,--undefined-version"
 ENV COMMON_CMAKE_ARGS \
   "-DCMAKE_TOOLCHAIN_FILE=/root/Android/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake" \
   "-DANDROID_ABI=$ABI" \
+  "-DARCH=$ARCH" \
+  "-DNDK_TRIPLET=$NDK_TRIPLET" \
+  "-DABI=$ABI" \
+  "-DBOOST_ARCH=$BOOST_ARCH" \
+  "-DBOOST_ADDRESS_MODEL=$BOOST_ADDRESS_MODEL" \
   "-DANDROID_PLATFORM=android-${API}" \
   "-DANDROID_STL=c++_shared" \
   "-DANDROID_CPP_FEATURES=" \
