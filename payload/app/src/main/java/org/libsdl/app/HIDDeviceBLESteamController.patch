@@ -1,0 +1,32 @@
+From ae8647ba54e0169f67f207298d7a53a867c6f1d3 Mon Sep 17 00:00:00 2001
+From: AbduSharif <57298920+AbduSharif@users.noreply.github.com>
+Date: Fri, 21 Apr 2023 19:23:20 +0200
+Subject: [PATCH] Update HIDDeviceBLESteamController.java
+
+---
+ .../java/org/libsdl/app/HIDDeviceBLESteamController.java   | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java b/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java
+index 94a28189..30f079c5 100644
+--- a/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java
++++ b/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java
+@@ -564,10 +564,10 @@ public String getProductName() {
+         return "Steam Controller";
+     }
+
+-	@Override
++    @Override
+     public UsbDevice getDevice() {
+-		return null;
+-	}
++        return null;
++    }
+
+     @Override
+     public boolean open() {
+@@ -647,4 +647,3 @@ public void shutdown() {
+     }
+
+ }
+-

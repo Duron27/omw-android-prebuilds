@@ -1,0 +1,54 @@
+From 00b70bc749a66949a4b46686b0dfb2449b1b1cfc Mon Sep 17 00:00:00 2001
+From: AbduSharif <57298920+AbduSharif@users.noreply.github.com>
+Date: Fri, 21 Apr 2023 19:19:26 +0200
+Subject: [PATCH] Update SDLAudioManager.java
+
+---
+ .../main/java/org/libsdl/app/SDLAudioManager.java   | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/app/src/main/java/org/libsdl/app/SDLAudioManager.java b/app/src/main/java/org/libsdl/app/SDLAudioManager.java
+index 0714419c..2bfc7186 100644
+--- a/app/src/main/java/org/libsdl/app/SDLAudioManager.java
++++ b/app/src/main/java/org/libsdl/app/SDLAudioManager.java
+@@ -1,6 +1,10 @@
+ package org.libsdl.app;
+
+-import android.media.*;
++import android.media.AudioFormat;
++import android.media.AudioManager;
++import android.media.AudioRecord;
++import android.media.AudioTrack;
++import android.media.MediaRecorder;
+ import android.os.Build;
+ import android.util.Log;
+
+@@ -43,6 +47,10 @@ protected static int[] open(boolean isCapture, int sampleRate, int audioFormat,
+             if (desiredChannels > 2) {
+                 desiredChannels = 2;
+             }
++        }
++
++        /* AudioTrack has sample rate limitation of 48000 (fixed in 5.0.2) */
++        if (Build.VERSION.SDK_INT < 22) {
+             if (sampleRate < 8000) {
+                 sampleRate = 8000;
+             } else if (sampleRate > 48000) {
+@@ -199,7 +207,6 @@ protected static int[] open(boolean isCapture, int sampleRate, int audioFormat,
+             results[0] = mAudioRecord.getSampleRate();
+             results[1] = mAudioRecord.getAudioFormat();
+             results[2] = mAudioRecord.getChannelCount();
+-            results[3] = desiredFrames;
+
+         } else {
+             if (mAudioTrack == null) {
+@@ -223,8 +230,8 @@ protected static int[] open(boolean isCapture, int sampleRate, int audioFormat,
+             results[0] = mAudioTrack.getSampleRate();
+             results[1] = mAudioTrack.getAudioFormat();
+             results[2] = mAudioTrack.getChannelCount();
+-            results[3] = desiredFrames;
+         }
++        results[3] = desiredFrames;
+
+         Log.v(TAG, "Opening " + (isCapture ? "capture" : "playback") + ", got " + results[3] + " frames of " + results[2] + " channel " + getAudioFormatString(results[1]) + " audio at " + results[0] + " Hz");
+

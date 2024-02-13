@@ -1,0 +1,22 @@
+From 4bc99ae8d57caaa93766ccfd07b79c737c8d0cf9 Mon Sep 17 00:00:00 2001
+From: AbduSharif <57298920+AbduSharif@users.noreply.github.com>
+Date: Fri, 21 Apr 2023 19:21:57 +0200
+Subject: [PATCH] Update HIDDeviceUSB.java
+
+---
+ app/src/main/java/org/libsdl/app/HIDDeviceUSB.java | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/src/main/java/org/libsdl/app/HIDDeviceUSB.java b/app/src/main/java/org/libsdl/app/HIDDeviceUSB.java
+index 19969c7d..d20fe80b 100644
+--- a/app/src/main/java/org/libsdl/app/HIDDeviceUSB.java
++++ b/app/src/main/java/org/libsdl/app/HIDDeviceUSB.java
+@@ -57,7 +57,7 @@ public String getSerialNumber() {
+                 result = mDevice.getSerialNumber();
+             }
+             catch (SecurityException exception) {
+-                result = "";
++                //Log.w(TAG, "App permissions mean we cannot get serial number for device " + getDeviceName() + " message: " + exception.getMessage());
+             }
+         }
+         if (result == null) {
