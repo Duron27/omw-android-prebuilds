@@ -27,7 +27,7 @@ ENV NDK_VERSION=26.1.10909125
 ENV SDK_CMDLINE_TOOLS=10406996_latest
 ENV PLATFORM_TOOLS_VERSION=29.0.0
 ENV JAVA_VERSION=17
-
+ENV APP_VERSION=1.0
 RUN dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
     && dnf install -y xz p7zip bzip2 libstdc++-devel glibc-devel unzip which wget redhat-lsb-core python-devel doxygen nano gcc-c++ git java-11-openjdk java-${JAVA_VERSION}-openjdk\
     cmake
@@ -395,4 +395,6 @@ RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libGL.so
 RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libcollada-dom2.5-dp.so
 RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libc++_shared.so
 
-#./gradlew assembleNightlyDebug -Dorg.gradle.java.home=/usr/lib/jvm/java-11-openjdk-11.0.22.0.7-1.fc39.x86_64
+RUN mkdir -p /root/payload/app/src/main/assets/libopenmw/resources && cd $_ && echo "${APP_VERSION}" > version
+
+RUN /root/payload/gradlew assembleNightlyDebug -Dorg.gradle.java.home=/usr/lib/jvm/java-11-openjdk-11.0.22.0.7-1.fc39.x86_64
