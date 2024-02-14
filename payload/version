@@ -1,0 +1,17 @@
+#!/bin/bash
+
+NDK_VERSION="${NDK_VERSION}"
+ANDROID_API="${API}"
+
+# End of configurable options
+
+NDK_FILE="ndk-$NDK_VERSION.zip"
+
+	ABI="${ABI}"
+	NDK_TRIPLET="${NDK_TRIPLET}"
+	FFMPEG_CPU="armv8-a"
+	BOOST_ARCH="arm"
+	BOOST_ADDRESS_MODEL="64"
+	LUAJIT_HOST_CC="gcc -m64"
+	ASAN_ARCH="${ARCH}"
+
