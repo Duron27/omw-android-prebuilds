@@ -188,10 +188,11 @@ RUN wget -c https://github.com/kcat/openal-soft/archive/${OPENAL_VERSION}.tar.gz
 # Setup BOOST
 RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VERSION}/boost-${BOOST_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     cd ${HOME}/src/boost-${BOOST_VERSION} && \
-    ./bootstrap.sh \
+    ./bootstrap.sh architecture=arm \
         prefix=${PREFIX} && \
     ./b2 \
         -j4 \
+        architecture=arm \
         --with-filesystem \
         --with-program_options \
         --with-system \
