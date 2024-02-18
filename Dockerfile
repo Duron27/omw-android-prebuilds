@@ -203,8 +203,6 @@ RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VE
         architecture=arm \
         address-model=64 \
         toolset=clang \
-        cflags="" \
-        cxxflags="" \
         variant=release \
         target-os=android \
         threading=multi \
