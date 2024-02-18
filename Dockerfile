@@ -57,7 +57,7 @@ COPY --chmod=0755 patches /root/patches
 COPY --chmod=0755 payload /root/payload
 
 #Setup ICU for the Host
-RUN mkdir -p ${HOME}/src/icu-host-build && cd $_ && ${HOME}/src/icu-release-70-1/icu4c/source/configure --disable-tests --disable-samples --disable-icuio --disable-extras CC="gcc" CXX="g++" && make -j $(nproc)
+RUN mkdir -p ${HOME}/src/icu-host-build && cd $_ && ${HOME}/src/icu-release-70-1/icu4c/source/configure --disable-tests --disable-samples --disable-icuio --disable-extras CC="gcc" CXX="g++" 1> /dev/null && make -j $(nproc) 1> /dev/null
 
 ENV PATH=$PATH:/root/Android/cmdline-tools/latest/bin/
 ENV PATH=$PATH:/root/Android/ndk/${NDK_VERSION}/
@@ -122,9 +122,9 @@ RUN mkdir -p ${HOME}/src/icu-${LIBICU_VERSION} && cd $_ && \
         --disable-icuio \
         --disable-extras \
         --prefix=${PREFIX} \
-        --with-cross-build=/root/src/icu-host-build && \
-    make -j $(nproc) check_PROGRAMS= bin_PROGRAMS= && \
-    make install check_PROGRAMS= bin_PROGRAMS=
+        --with-cross-build=/root/src/icu-host-build 1> /dev/null && \
+    make -j $(nproc) check_PROGRAMS= bin_PROGRAMS= 1> /dev/null && \
+    make install check_PROGRAMS= bin_PROGRAMS= 1> /dev/null
 
 # Setup Bzip2
 RUN cd $HOME/src/ && git clone https://github.com/libarchive/bzip2 && cd bzip2 && cmake . $COMMON_CMAKE_ARGS && make -j $(nproc) && make install
