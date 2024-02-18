@@ -43,13 +43,13 @@ ENV PREFIX=/root/prefix
 
 RUN cd ${HOME}/src && wget https://github.com/unicode-org/icu/archive/refs/tags/release-${LIBICU_VERSION}.zip && unzip -o ${HOME}/src/release-${LIBICU_VERSION}.zip && rm -rf release-${LIBICU_VERSION}.zip
 RUN wget https://dl.google.com/android/repository/commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip && unzip commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip && mkdir -p ${HOME}/Android/cmdline-tools/ && mv cmdline-tools/ ${HOME}/Android/cmdline-tools/latest && rm commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip
-RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses
+RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses 1> /dev/null
 RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "ndk;${NDK_VERSION}" --channel=0
 RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install emulator
 RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-28"
 RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "platform-tools"
 RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "build-tools;29.0.2"
-RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses
+RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses 1> /dev/null
 
 #RUN wget https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip
 
@@ -82,6 +82,9 @@ ENV CXX=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++
 ENV CFLAGS="-fPIC -O3"
 ENV CXXFLAGS="-fPIC -frtti -fexceptions -O3"
 ENV LDFLAGS="-fPIC -Wl,--undefined-version"
+
+RUN alias clang++="aarch64-linux-android21-clang++"
+RUN alias clang="aarch64-linux-android21-clang"
 
 ENV COMMON_CMAKE_ARGS \
   "-DCMAKE_TOOLCHAIN_FILE=/root/Android/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake" \
