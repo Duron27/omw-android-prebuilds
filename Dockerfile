@@ -79,8 +79,8 @@ ENV CXX=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++
 
 
 # Global C, CXX and LDFLAGS
-ENV CFLAGS="-fPIC -O3"
-ENV CXXFLAGS="-fPIC -frtti -fexceptions -O3"
+ENV CFLAGS="-fPIC -O3 CC=$CC"
+ENV CXXFLAGS="-fPIC -frtti -fexceptions -O3 CXX=$CXX"
 ENV LDFLAGS="-fPIC -Wl,--undefined-version"
 
 ENV alias clang++="aarch64-linux-android21-clang++"
