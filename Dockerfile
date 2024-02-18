@@ -214,7 +214,7 @@ RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VE
         binary-format=elf \
         architecture=arm \
         address-model=64 \
-        toolset=clang \
+        -toolset=aarch64-linux-android21-clang++ \
         variant=release \
         target-os=android \
         threading=multi \
