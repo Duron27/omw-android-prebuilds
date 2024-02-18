@@ -192,13 +192,6 @@ RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VE
         prefix=${PREFIX} && \
     ./b2 \
         -j4 \
-        architecture=arm \
-        --with-filesystem \
-        --with-program_options \
-        --with-system \
-        --with-iostreams \
-        --prefix=${PREFIX} \
-        --ignore-site-config \
         binary-format=elf \
         architecture=arm \
         address-model=64 \
@@ -209,6 +202,12 @@ RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VE
         threadapi=pthread \
         link=static \
         runtime-link=static \
+        --with-filesystem \
+        --with-program_options \
+        --with-system \
+        --with-iostreams \
+        --prefix=${PREFIX} \
+        --ignore-site-config \
         install
 
 
