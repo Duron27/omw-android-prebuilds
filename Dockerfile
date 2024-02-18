@@ -33,8 +33,6 @@ RUN dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-re
     cmake
 
 ENV JAVA_HOME /usr/lib/jvm/java-17-openjdk-17.0.9.0.9-3.fc39.x86_64
-ENV ANDROID_SDK_ROOT=/root/Android/cmdline-tools/latest/bin
-ENV ANDROID_HOME=/root/Android
 RUN mkdir -p ${HOME}/prefix
 RUN mkdir -p ${HOME}/src
 
@@ -50,6 +48,9 @@ RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-2
 RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "platform-tools"
 RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "build-tools;29.0.2"
 RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses 1> /dev/null
+
+ENV ANDROID_SDK_ROOT=/root/Android/sdk
+ENV ANDROID_HOME=/root/Android
 
 #RUN wget https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip
 
