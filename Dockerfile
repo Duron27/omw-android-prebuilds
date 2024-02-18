@@ -91,7 +91,7 @@ ENV alias gcc="aarch64-linux-android21-clang"
 ENV alias yes="yes no"
 
 ENV COMMON_CMAKE_ARGS \
-  "-DCMAKE_TOOLCHAIN_FILE=/root/Android/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake" \
+ # "-DCMAKE_TOOLCHAIN_FILE=/root/Android/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake" \
   "-DANDROID_ABI=$ABI" \
   "-DANDROID_PLATFORM=android-${API}" \
   "-DANDROID_STL=c++_shared" \
@@ -104,8 +104,8 @@ ENV COMMON_CMAKE_ARGS \
   "-DCMAKE_DEBUG_POSTFIX=" \
   "-DCMAKE_INSTALL_PREFIX=${PREFIX}" \
   "-DCMAKE_FIND_ROOT_PATH=${PREFIX}" \
-  "-DCMAKE_CXX_COMPILER=${NDK_TRIPLET}${API}-clang++" \
-  "-DCMAKE_CC_COMPILER=${NDK_TRIPLET}${API}-clang" \
+ # "-DCMAKE_CXX_COMPILER=${NDK_TRIPLET}${API}-clang++" \
+ # "-DCMAKE_CC_COMPILER=${NDK_TRIPLET}${API}-clang" \
   "-DHAVE_LD_VERSION_SCRIPT=OFF"
 
 ENV COMMON_AUTOCONF_FLAGS="--enable-static --disable-shared --prefix=${PREFIX} --host=${NDK_TRIPLET}${API}"
