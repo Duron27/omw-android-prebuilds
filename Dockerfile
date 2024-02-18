@@ -85,6 +85,8 @@ ENV LDFLAGS="-fPIC -Wl,--undefined-version"
 
 ENV alias clang++="aarch64-linux-android21-clang++"
 ENV alias clang="aarch64-linux-android21-clang"
+ENV alias g++="aarch64-linux-android21-clang++"
+ENV alias gcc="aarch64-linux-android21-clang"
 ENV alias yes="yes no"
 
 ENV COMMON_CMAKE_ARGS \
