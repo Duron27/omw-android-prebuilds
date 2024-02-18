@@ -85,6 +85,7 @@ ENV LDFLAGS="-fPIC -Wl,--undefined-version"
 
 RUN export alias clang++="aarch64-linux-android21-clang++"
 RUN export alias clang="aarch64-linux-android21-clang"
+RUN export alias yes="yes no"
 
 ENV COMMON_CMAKE_ARGS \
   "-DCMAKE_TOOLCHAIN_FILE=/root/Android/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake" \
