@@ -79,8 +79,8 @@ ENV CXX=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++
 
 
 # Global C, CXX and LDFLAGS
-ENV CFLAGS="-fPIC -O3 -flto=thin"
-ENV CXXFLAGS="-fPIC -frtti -fexceptions -O3 -flto=thin"
+ENV CFLAGS="-fPIC -O3"
+ENV CXXFLAGS="-fPIC -frtti -fexceptions -O3"
 ENV LDFLAGS="-fPIC -Wl,--undefined-version"
 
 ENV COMMON_CMAKE_ARGS \
