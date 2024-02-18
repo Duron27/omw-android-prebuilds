@@ -220,7 +220,7 @@ RUN $RANLIB ${PREFIX}/lib/libboost_filesystem.a
 RUN $RANLIB ${PREFIX}/lib/libboost_program_options.a
 RUN $RANLIB ${PREFIX}/lib/libboost_system.a
 RUN $RANLIB ${PREFIX}/lib/libboost_iostreams.a
-RUN $RANLIB ${PREFIX}/lib/libboost_regex.a
+#RUN $RANLIB ${PREFIX}/lib/libboost_regex.a
 
 # Setup FFMPEG_VERSION
 RUN wget -c http://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 -O - | tar -xjf - -C ${HOME}/src/ && \
