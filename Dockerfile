@@ -57,7 +57,7 @@ COPY --chmod=0755 patches /root/patches
 COPY --chmod=0755 payload /root/payload
 
 #Setup ICU for the Host
-RUN mkdir -p ${HOME}/src/icu-host-build && cd $_ && ${HOME}/src/icu-release-70-1/icu4c/source/configure --disable-tests --disable-samples --disable-icuio --disable-extras CC="gcc" CXX="g++" 1> /dev/null && make -j $(nproc) 1> /dev/null
+RUN mkdir -p ${HOME}/src/icu-host-build && cd $_ && ${HOME}/src/icu-release-70-1/icu4c/source/configure --disable-tests --disable-samples --disable-icuio --disable-extras CC="gcc" CXX="g++" && make -j $(nproc) 1> /dev/null
 
 ENV PATH=$PATH:/root/Android/cmdline-tools/latest/bin/
 ENV PATH=$PATH:/root/Android/ndk/${NDK_VERSION}/
@@ -122,19 +122,23 @@ RUN mkdir -p ${HOME}/src/icu-${LIBICU_VERSION} && cd $_ && \
         --disable-icuio \
         --disable-extras \
         --prefix=${PREFIX} \
-        --with-cross-build=/root/src/icu-host-build 1> /dev/null && \
+        --with-cross-build=/root/src/icu-host-build && \
     make -j $(nproc) check_PROGRAMS= bin_PROGRAMS= 1> /dev/null && \
     make install check_PROGRAMS= bin_PROGRAMS= 1> /dev/null
 
 # Setup Bzip2
-RUN cd $HOME/src/ && git clone https://github.com/libarchive/bzip2 && cd bzip2 && cmake . $COMMON_CMAKE_ARGS && make -j $(nproc) && make install
+RUN cd $HOME/src/ && git clone https://github.com/libarchive/bzip2 && cd bzip2 && cmake . $COMMON_CMAKE_ARGS && make -j $(nproc) 1> /dev/null
+ && make install 1> /dev/null
+
 
 # Setup ZLIB
 RUN wget -c https://github.com/madler/zlib/archive/refs/tags/v${ZLIB_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     mkdir -p ${HOME}/src/zlib-${ZLIB_VERSION}/build && cd $_ && \
     cmake ${HOME}/src/zlib-${ZLIB_VERSION} \
         ${COMMON_CMAKE_ARGS} && \
-    make -j $(nproc) && make install
+    make -j $(nproc) 1> /dev/null
+&& make install 1> /dev/null
+
 
 # Setup LIBJPEG_TURBO
 RUN wget -c https://sourceforge.net/projects/libjpeg-turbo/files/${LIBJPEG_TURBO_VERSION}/libjpeg-turbo-${LIBJPEG_TURBO_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
@@ -142,16 +146,19 @@ RUN wget -c https://sourceforge.net/projects/libjpeg-turbo/files/${LIBJPEG_TURBO
     ${HOME}/src/libjpeg-turbo-${LIBJPEG_TURBO_VERSION}/configure \
         ${COMMON_AUTOCONF_FLAGS} \
         --without-simd && \
-    make -j $(nproc) check_PROGRAMS=bin_PROGRAMS= && \
-    make install check_PROGRAMS=bin_PROGRAMS=
+    make -j $(nproc) check_PROGRAMS=bin_PROGRAMS= 1> /dev/null && \
+    make install check_PROGRAMS=bin_PROGRAMS= 1> /dev/null
+
 
 # Setup LIBPNG
 RUN wget -c http://prdownloads.sourceforge.net/libpng/libpng-${LIBPNG_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     mkdir -p ${HOME}/src/libpng-${LIBPNG_VERSION}/build && cd $_ && \
         ${HOME}/src/libpng-${LIBPNG_VERSION}/configure \
         ${COMMON_AUTOCONF_FLAGS} && \
-    make -j $(nproc) check_PROGRAMS= bin_PROGRAMS= && \
-    make install check_PROGRAMS= bin_PROGRAMS=
+    make -j $(nproc) check_PROGRAMS= bin_PROGRAMS= 1> /dev/null
+&& \
+    make install check_PROGRAMS= bin_PROGRAMS= 1> /dev/null
+
 
 # Setup FREETYPE2
 RUN wget -c https://download.savannah.gnu.org/releases/freetype/freetype-${FREETYPE2_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
@@ -159,7 +166,9 @@ RUN wget -c https://download.savannah.gnu.org/releases/freetype/freetype-${FREET
         ${HOME}/src/freetype-${FREETYPE2_VERSION}/configure \
         ${COMMON_AUTOCONF_FLAGS} \
         --with-png=no && \
-    make -j $(nproc) && make install
+    make -j $(nproc) 1> /dev/null
+&& make install 1> /dev/null
+
 
 # Setup LIBXML
 RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v${LIBXML2_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
@@ -174,7 +183,9 @@ RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v${LIBXML2_VERSIO
         -DLIBXML2_WITH_PYTHON=OFF \
         -DLIBXML2_WITH_TESTS=OFF \
         -DLIBXML2_WITH_ZLIB=ON && \
-    make -j $(nproc) && make install
+    make -j $(nproc) 1> /dev/null
+&& make install 1> /dev/null
+
 
 # Setup OPENAL
 RUN wget -c https://github.com/kcat/openal-soft/archive/${OPENAL_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
@@ -187,7 +198,9 @@ RUN wget -c https://github.com/kcat/openal-soft/archive/${OPENAL_VERSION}.tar.gz
         -DALSOFT_NO_CONFIG_UTIL=ON \
         -DALSOFT_BACKEND_OPENSL=ON \
         -DALSOFT_BACKEND_WAVE=OFF && \
-    make -j $(nproc) && make install
+    make -j $(nproc) 1> /dev/null
+&& make install 1> /dev/null
+
 
 # Setup BOOST
 RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VERSION}/boost-${BOOST_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
@@ -257,7 +270,9 @@ RUN wget -c http://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 -O - | t
         --enable-decoder=vorbis \
         --enable-demuxer=matroska \
         --enable-demuxer=ogg && \
-    make -j $(nproc) && make install
+    make -j $(nproc) 1> /dev/null
+&& make install 1> /dev/null
+
 
 # Setup SDL2_VERSION
 RUN wget -c https://www.libsdl.org/release/SDL2-${SDL2_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/ && \
@@ -277,7 +292,9 @@ RUN wget -c https://github.com/bulletphysics/bullet3/archive/${BULLET_VERSION}.t
         -DBUILD_EXTRAS=OFF \
         -DUSE_DOUBLE_PRECISION=ON \
         -DBULLET2_MULTITHREADING=ON && \
-    make -j $(nproc) && make install
+    make -j $(nproc) 1> /dev/null
+&& make install 1> /dev/null
+
 
 # Setup GL4ES_VERSION
 RUN wget -c https://github.com/sisah2/gl4es/archive/${GL4ES_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/ && \
@@ -296,7 +313,9 @@ RUN wget -c https://github.com/MyGUI/mygui/archive/MyGUI${MYGUI_VERSION}.tar.gz 
         -DMYGUI_BUILD_PLUGINS=OFF \
         -DMYGUI_DONT_USE_OBSOLETE=ON \
         -DMYGUI_STATIC=ON && \
-    make -j $(nproc) && make install
+    make -j $(nproc) 1> /dev/null
+&& make install 1> /dev/null
+
 
 # Setup LZ4
 RUN wget -c https://github.com/lz4/lz4/archive/v${LZ4_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
@@ -305,7 +324,9 @@ RUN wget -c https://github.com/lz4/lz4/archive/v${LZ4_VERSION}.tar.gz -O - | tar
         ${COMMON_CMAKE_ARGS} \
         -DBUILD_STATIC_LIBS=ON \
         -DBUILD_SHARED_LIBS=OFF && \
-    make -j $(nproc) && make install
+    make -j $(nproc) 1> /dev/null
+&& make install 1> /dev/null
+
 
 # Setup LUAJIT_VERSION
 RUN wget -c https://github.com/luaJit/LuaJIT/archive/v${LUAJIT_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/ && \
