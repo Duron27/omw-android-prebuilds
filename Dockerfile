@@ -209,9 +209,9 @@ RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VE
         --prefix=${PREFIX} \
         --ignore-site-config \
         binary-format=elf \
+        abi=aapcs \
         architecture=arm \
         address-model=64 \
-        -toolset=aarch64-linux-android-clang++ \
         variant=release \
         target-os=android \
         threading=multi \
