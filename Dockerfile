@@ -88,10 +88,10 @@ ENV alias yes="yes no"
 
 ENV COMMON_CMAKE_ARGS \
   "-DCMAKE_TOOLCHAIN_FILE=/root/Android/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake" \
-  "-DANDROID_ABI=$ABI" \
-  "-DANDROID_PLATFORM=android-${API}" \
+  "-DANDROID_ABI=${ABI}" \
+  "-DANDROID_PLATFORM=${API}" \
   "-DANDROID_STL=c++_shared" \
-  "-DANDROID_CPP_FEATURES=" \
+  "-DANDROID_CPP_FEATURES=rtti exceptions" \
   "-DANDROID_ALLOW_UNDEFINED_VERSION_SCRIPT_SYMBOLS=ON" \
   "-DCMAKE_C_FLAGS=-I${PREFIX}" \
   "-DCMAKE_CXX_FLAGS=-I${PREFIX}" \
