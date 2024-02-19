@@ -198,7 +198,7 @@ RUN wget -c https://github.com/kcat/openal-soft/archive/${OPENAL_VERSION}.tar.gz
 # Setup BOOST
 RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VERSION}/boost-${BOOST_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     cd ${HOME}/src/boost-${BOOST_VERSION} && \
-    ./bootstrap.sh \
+    ./bootstrap.sh -toolset=aarch64-linux-android-clang++ \
         prefix=${PREFIX} && \
     ./b2 \
         -j4 \
@@ -211,7 +211,7 @@ RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VE
         binary-format=elf \
         architecture=arm \
         address-model=64 \
-        -toolset=aarch64-linux-android21-clang++ \
+        -toolset=aarch64-linux-android-clang++ \
         variant=release \
         target-os=android \
         threading=multi \
