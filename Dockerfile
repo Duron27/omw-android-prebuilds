@@ -209,8 +209,7 @@ RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VE
         --prefix=${PREFIX} \
         --ignore-site-config \
         --user-config=user-config.jam \
-        toolset=clang-android
-        architecture=arm \
+        toolset=clang-android \
         address-model=64 \
         variant=release \
         target-os=android \
