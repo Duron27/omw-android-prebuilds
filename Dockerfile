@@ -197,7 +197,7 @@ RUN wget -c https://github.com/kcat/openal-soft/archive/${OPENAL_VERSION}.tar.gz
 
 # Setup BOOST
 RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VERSION}/boost-${BOOST_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
-    cd ${HOME}/src/boost-${BOOST_VERSION} && \
+    cd ${HOME}/src/boost-${BOOST_VERSION} && using clang : android : ${NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=${ARCH}-none-linux-android${API} --sysroot=${NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot ; > user-config.jam && \
     ./bootstrap.sh -toolset=aarch64-linux-android-clang++ \
         prefix=${PREFIX} && \
     ./b2 \
