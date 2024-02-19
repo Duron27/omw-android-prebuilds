@@ -87,7 +87,7 @@ ENV alias gcc="aarch64-linux-android21-clang"
 ENV alias yes="yes no"
 
 ENV COMMON_CMAKE_ARGS \
- # "-DCMAKE_TOOLCHAIN_FILE=/root/Android/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake" \
+  "-DCMAKE_TOOLCHAIN_FILE=/root/Android/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake" \
   "-DANDROID_ABI=$ABI" \
   "-DANDROID_PLATFORM=android-${API}" \
   "-DANDROID_STL=c++_shared" \
