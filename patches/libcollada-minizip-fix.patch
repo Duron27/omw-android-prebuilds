@@ -1,4 +1,3 @@
-
 --- dom/external-libs/minizip-1.1/ioapi.h	2021-11-14 15:14:43.676418790 +0100
 +++ dom/external-libs/minizip-1.1/ioapi.h	2021-11-14 15:14:50.468378154 +0100
 @@ -44,7 +44,7 @@
