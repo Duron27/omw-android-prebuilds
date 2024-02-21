@@ -74,9 +74,7 @@ public class SecondaryChooserAdapter extends BaseAdapter {
             applyFolderTint(pathFolderIcon);
         }
 
-        else {
-            thumbnailUtil.init(pathFolderIcon, storagesList.get(i));
-        }
+        thumbnailUtil.init(pathFolderIcon, storagesList.get(i));
 
         TextView storageName = rootView.findViewById(R.id.storage_name);
         storageName.setText(storagesList.get(i));
