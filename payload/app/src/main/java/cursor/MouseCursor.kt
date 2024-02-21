@@ -35,6 +35,10 @@ import ui.activity.MainActivity
 import ui.activity.MouseMode
 import ui.controls.Osc
 
+import android.graphics.BitmapFactory
+import constants.Constants
+import java.io.File
+
 /**
  * An image view which doesn't downsize itself when moved to the border of a RelativeLayout
  * (not sure if original behavior is intended)
@@ -77,7 +81,11 @@ class MouseCursor(activity: GameActivity, private val osc: Osc?) : Choreographer
         val width = Math.round(height / 1.5).toInt()
 
         cursor = FixedSizeImageView(activity, width, height)
-        cursor.setImageResource(R.drawable.pointer_arrow)
+
+        if (File(Constants.USER_FILE_STORAGE + "/icons/pointer_arrow.png").exists())
+            cursor.setImageBitmap(BitmapFactory.decodeFile(Constants.USER_FILE_STORAGE + "/icons/pointer_arrow.png"))
+        else
+            cursor.setImageResource(R.drawable.pointer_arrow)
 
         cursor.layoutParams = RelativeLayout.LayoutParams(width, height)
 

@@ -33,6 +33,8 @@ RUN dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-re
     cmake
 
 ENV JAVA_HOME /usr/lib/jvm/java-17-openjdk-17.0.9.0.9-3.fc39.x86_64
+ENV ANDROID_SDK_ROOT=/root/Android/cmdline-tools/latest/bin
+ENV ANDROID_HOME=/root/Android
 RUN mkdir -p ${HOME}/prefix
 RUN mkdir -p ${HOME}/src
 
@@ -41,12 +43,9 @@ ENV PREFIX=/root/prefix
 
 RUN cd ${HOME}/src && wget https://github.com/unicode-org/icu/archive/refs/tags/release-${LIBICU_VERSION}.zip && unzip -o ${HOME}/src/release-${LIBICU_VERSION}.zip && rm -rf release-${LIBICU_VERSION}.zip
 RUN wget https://dl.google.com/android/repository/commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip && unzip commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip && mkdir -p ${HOME}/Android/cmdline-tools/ && mv cmdline-tools/ ${HOME}/Android/cmdline-tools/latest && rm commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip
-RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses 1> /dev/null
-RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "ndk;${NDK_VERSION}" "platforms;android-28" "platform-tools" "build-tools;29.0.2" "emulator" --channel=0
-RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses 1> /dev/null
-
-ENV ANDROID_SDK_ROOT=/root/Android/
-ENV ANDROID_HOME=/root/Android
+RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
+RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "ndk;${NDK_VERSION}" "platforms;android-28" "ndk;21.0.6113669" "platform-tools" "build-tools;29.0.2" "emulator" --channel=0
+RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
 
 #RUN wget https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip
 
@@ -54,18 +53,15 @@ COPY --chmod=0755 patches /root/patches
 COPY --chmod=0755 payload /root/payload
 
 #Setup ICU for the Host
-RUN mkdir -p ${HOME}/src/icu-host-build && cd $_ && ${HOME}/src/icu-release-70-1/icu4c/source/configure --disable-tests --disable-samples --disable-icuio --disable-extras CC="gcc" CXX="g++" && make -j $(nproc) 1> /dev/null
+RUN mkdir -p ${HOME}/src/icu-host-build && cd $_ && ${HOME}/src/icu-release-70-1/icu4c/source/configure --disable-tests --disable-samples --disable-icuio --disable-extras CC="gcc" CXX="g++" && make -j $(nproc)
 
-ENV PATH=$PATH:/root/Android/cmdline-tools/latest/bin/
-ENV PATH=$PATH:/root/Android/ndk/${NDK_VERSION}/
-ENV PATH=$PATH:/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64
-ENV PATH=$PATH:/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin
-ENV PATH=$PATH:/root/prefix/include:/root/prefix/lib:/root/prefix/
+ENV PATH=$PATH:/root/Android/cmdline-tools/latest/bin/:/root/Android/ndk/${NDK_VERSION}/:/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64:/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin:/root/prefix/include:/root/prefix/lib:/root/prefix/
 
 # NDK Settings
 ENV API=21
 ENV ABI=arm64-v8a
-ENV NDK_TRIPLET=aarch64-linux-android
+ENV ARCH=aarch64
+ENV NDK_TRIPLET=${ARCH}-linux-android
 ENV TOOLCHAIN=/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64
 ENV AR=${TOOLCHAIN}/bin/llvm-ar
 ENV LD=${TOOLCHAIN}/bin/ld
@@ -74,24 +70,17 @@ ENV STRIP=${TOOLCHAIN}/bin/llvm-strip
 ENV CC=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang
 ENV CXX=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++
 
-
 # Global C, CXX and LDFLAGS
 ENV CFLAGS="-fPIC -O3"
 ENV CXXFLAGS="-fPIC -frtti -fexceptions -O3"
 ENV LDFLAGS="-fPIC -Wl,--undefined-version"
 
-ENV alias clang++="aarch64-linux-android21-clang++"
-ENV alias clang="aarch64-linux-android21-clang"
-ENV alias g++="aarch64-linux-android21-clang++"
-ENV alias gcc="aarch64-linux-android21-clang"
-ENV alias yes="yes no"
-
 ENV COMMON_CMAKE_ARGS \
   "-DCMAKE_TOOLCHAIN_FILE=/root/Android/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake" \
-  "-DANDROID_ABI=${ABI}" \
-  "-DANDROID_PLATFORM=${API}" \
+  "-DANDROID_ABI=$ABI" \
+  "-DANDROID_PLATFORM=android-${API}" \
   "-DANDROID_STL=c++_shared" \
-  "-DANDROID_CPP_FEATURES=rtti exceptions" \
+  "-DANDROID_CPP_FEATURES=" \
   "-DANDROID_ALLOW_UNDEFINED_VERSION_SCRIPT_SYMBOLS=ON" \
   "-DCMAKE_C_FLAGS=-I${PREFIX}" \
   "-DCMAKE_CXX_FLAGS=-I${PREFIX}" \
@@ -123,19 +112,17 @@ RUN mkdir -p ${HOME}/src/icu-${LIBICU_VERSION} && cd $_ && \
         --prefix=${PREFIX} \
         --with-cross-build=/root/src/icu-host-build && \
     make -j $(nproc) check_PROGRAMS= bin_PROGRAMS= && \
-    make install check_PROGRAMS= bin_PROGRAMS= 1> /dev/null
+    make install check_PROGRAMS= bin_PROGRAMS=
 
 # Setup Bzip2
-RUN cd $HOME/src/ && git clone https://github.com/libarchive/bzip2 && cd bzip2 && cmake . $COMMON_CMAKE_ARGS && make -j $(nproc) && make install 1> /dev/null
-
+RUN cd $HOME/src/ && git clone https://github.com/libarchive/bzip2 && cd bzip2 && cmake . $COMMON_CMAKE_ARGS && make -j $(nproc) && make install
 
 # Setup ZLIB
 RUN wget -c https://github.com/madler/zlib/archive/refs/tags/v${ZLIB_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     mkdir -p ${HOME}/src/zlib-${ZLIB_VERSION}/build && cd $_ && \
     cmake ${HOME}/src/zlib-${ZLIB_VERSION} \
         ${COMMON_CMAKE_ARGS} && \
-    make -j $(nproc) && make install 1> /dev/null
-
+    make -j $(nproc) && make install
 
 # Setup LIBJPEG_TURBO
 RUN wget -c https://sourceforge.net/projects/libjpeg-turbo/files/${LIBJPEG_TURBO_VERSION}/libjpeg-turbo-${LIBJPEG_TURBO_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
@@ -144,8 +131,7 @@ RUN wget -c https://sourceforge.net/projects/libjpeg-turbo/files/${LIBJPEG_TURBO
         ${COMMON_AUTOCONF_FLAGS} \
         --without-simd && \
     make -j $(nproc) check_PROGRAMS=bin_PROGRAMS= && \
-    make install check_PROGRAMS=bin_PROGRAMS= 1> /dev/null
-
+    make install check_PROGRAMS=bin_PROGRAMS=
 
 # Setup LIBPNG
 RUN wget -c http://prdownloads.sourceforge.net/libpng/libpng-${LIBPNG_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
@@ -153,8 +139,7 @@ RUN wget -c http://prdownloads.sourceforge.net/libpng/libpng-${LIBPNG_VERSION}.t
         ${HOME}/src/libpng-${LIBPNG_VERSION}/configure \
         ${COMMON_AUTOCONF_FLAGS} && \
     make -j $(nproc) check_PROGRAMS= bin_PROGRAMS= && \
-    make install check_PROGRAMS= bin_PROGRAMS= 1> /dev/null
-
+    make install check_PROGRAMS= bin_PROGRAMS=
 
 # Setup FREETYPE2
 RUN wget -c https://download.savannah.gnu.org/releases/freetype/freetype-${FREETYPE2_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
@@ -162,8 +147,7 @@ RUN wget -c https://download.savannah.gnu.org/releases/freetype/freetype-${FREET
         ${HOME}/src/freetype-${FREETYPE2_VERSION}/configure \
         ${COMMON_AUTOCONF_FLAGS} \
         --with-png=no && \
-    make -j $(nproc) && make install 1> /dev/null
-
+    make -j $(nproc) && make install
 
 # Setup LIBXML
 RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v${LIBXML2_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
@@ -178,8 +162,7 @@ RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v${LIBXML2_VERSIO
         -DLIBXML2_WITH_PYTHON=OFF \
         -DLIBXML2_WITH_TESTS=OFF \
         -DLIBXML2_WITH_ZLIB=ON && \
-    make -j $(nproc) && make install 1> /dev/null
-
+    make -j $(nproc) && make install
 
 # Setup OPENAL
 RUN wget -c https://github.com/kcat/openal-soft/archive/${OPENAL_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
@@ -192,13 +175,13 @@ RUN wget -c https://github.com/kcat/openal-soft/archive/${OPENAL_VERSION}.tar.gz
         -DALSOFT_NO_CONFIG_UTIL=ON \
         -DALSOFT_BACKEND_OPENSL=ON \
         -DALSOFT_BACKEND_WAVE=OFF && \
-    make -j $(nproc) && make install 1> /dev/null
+    make -j $(nproc) && make install
 
 # Setup BOOST
 ENV JAM=/root/src/boost-${BOOST_VERSION}/user-config.jam
 RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VERSION}/boost-${BOOST_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
         cd ${HOME}/src/boost-${BOOST_VERSION} && \
-        echo "using clang : aarch64 : ${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++ ;" >> ${JAM} && \
+        echo "using clang : ${ARCH} : ${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++ ;" >> ${JAM} && \
     ./bootstrap.sh \
         --with-toolset=clang \
         prefix=${PREFIX} && \
@@ -267,8 +250,7 @@ RUN wget -c http://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 -O - | t
         --enable-decoder=vorbis \
         --enable-demuxer=matroska \
         --enable-demuxer=ogg && \
-    make -j $(nproc) && make install 1> /dev/null
-
+    make -j $(nproc) && make install
 
 # Setup SDL2_VERSION
 RUN wget -c https://www.libsdl.org/release/SDL2-${SDL2_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/ && \
@@ -288,8 +270,7 @@ RUN wget -c https://github.com/bulletphysics/bullet3/archive/${BULLET_VERSION}.t
         -DBUILD_EXTRAS=OFF \
         -DUSE_DOUBLE_PRECISION=ON \
         -DBULLET2_MULTITHREADING=ON && \
-    make -j $(nproc) && make install 1> /dev/null
-
+    make -j $(nproc) && make install
 
 # Setup GL4ES_VERSION
 RUN wget -c https://github.com/sisah2/gl4es/archive/${GL4ES_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/ && \
@@ -308,8 +289,7 @@ RUN wget -c https://github.com/MyGUI/mygui/archive/MyGUI${MYGUI_VERSION}.tar.gz 
         -DMYGUI_BUILD_PLUGINS=OFF \
         -DMYGUI_DONT_USE_OBSOLETE=ON \
         -DMYGUI_STATIC=ON && \
-    make -j $(nproc) && make install 1> /dev/null
-
+    make -j $(nproc) && make install
 
 # Setup LZ4
 RUN wget -c https://github.com/lz4/lz4/archive/v${LZ4_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
@@ -318,8 +298,7 @@ RUN wget -c https://github.com/lz4/lz4/archive/v${LZ4_VERSION}.tar.gz -O - | tar
         ${COMMON_CMAKE_ARGS} \
         -DBUILD_STATIC_LIBS=ON \
         -DBUILD_SHARED_LIBS=OFF && \
-    make -j $(nproc) && make install 1> /dev/null
-
+    make -j $(nproc) && make install
 
 # Setup LUAJIT_VERSION
 RUN wget -c https://github.com/luaJit/LuaJIT/archive/v${LUAJIT_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/ && \
@@ -384,12 +363,10 @@ RUN wget -c https://github.com/openmw/osg/archive/${OSG_VERSION}.tar.gz -O - | t
         -DCMAKE_CXX_FLAGS=-Dauto_ptr=unique_ptr\ -I${PREFIX}/include/freetype2/ && \
     make -j $(nproc) && make install
 
-
-
 # Setup OPENMW_VERSION
 RUN wget -c https://github.com/OpenMW/openmw/archive/${OPENMW_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/ && \
     mkdir -p ${HOME}/src/openmw-${OPENMW_VERSION}/build && cd $_
-    
+
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/cmakefix.patch
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/0001-loadingscreen-disable-for-now.patch
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/0009-windowmanagerimp-always-show-mouse-when-possible-pat.patch
@@ -443,3 +420,4 @@ RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libc++_shared.so
 RUN mkdir -p /root/payload/app/src/main/assets/libopenmw/resources && cd $_ && echo "${APP_VERSION}" > version
 
 RUN cd /root/payload/ && ./gradlew assembleNightlyDebug -Dorg.gradle.java.home=/usr/lib/jvm/java-11-openjdk-11.0.22.0.7-1.fc39.x86_64
+

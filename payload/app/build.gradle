@@ -12,8 +12,18 @@ ext {
 }
 
 android {
-
     compileSdkVersion 29
+
+    sourceSets {
+        main {
+            resources {
+                srcDir {
+                    // To include the wrap.sh script required by ASAN
+                    "wrap/res"
+                }
+            }
+        }
+    }
 
     defaultConfig {
         applicationId "is.xyz.omw"
@@ -45,7 +55,7 @@ android {
 
         debug {
             applicationIdSuffix ".debug"
-            debuggable true
+            debuggable false
         }
     }
 
@@ -62,7 +72,6 @@ android {
             versionNameSuffix "-nightly"
         }
     }
-    ndkVersion '26.1.10909125'
 
     applicationVariants.all { variant ->
         variant.outputs.all {

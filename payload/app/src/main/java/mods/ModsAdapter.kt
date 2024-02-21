@@ -36,9 +36,10 @@ import java.util.*
 /**
  * An adapter to put a ModsCollection into a UI list
  */
-class ModsAdapter(private val collection: ModsCollection) : RecyclerView.Adapter<ModsAdapter.ModViewHolder>() {
+class ModsAdapter() : RecyclerView.Adapter<ModsAdapter.ModViewHolder>() {
 
     lateinit var touchHelper: ItemTouchHelper
+    lateinit var collection: ModsCollection
 
     /**
      * A row representation of a mod
@@ -104,11 +105,11 @@ class ModsAdapter(private val collection: ModsCollection) : RecyclerView.Adapter
     }
 
     fun onRowSelected(modViewHolder: ModViewHolder) {
-        modViewHolder.rowView.setBackgroundColor(Color.LTGRAY)
+        modViewHolder.rowView.setBackgroundResource(R.drawable.mod_item_selected_background)
     }
 
     fun onRowClear(modViewHolder: ModViewHolder) {
-        modViewHolder.rowView.setBackgroundColor(Color.WHITE)
+        modViewHolder.rowView.setBackgroundResource(R.drawable.mod_item_background)
         collection.update()
     }
 }

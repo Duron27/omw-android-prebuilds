@@ -41,6 +41,7 @@ import file.GameInstaller
 import ui.activity.ConfigureControls
 import ui.activity.MainActivity
 import ui.activity.ModsActivity
+import ui.activity.SettingsActivity
 import utils.MyApp
 import java.util.*
 
@@ -60,10 +61,31 @@ class FragmentSettings : PreferenceFragment(), OnSharedPreferenceChangeListener 
             true
         }
 
-        findPreference("pref_mods").setOnPreferenceClickListener {
-            val intent = Intent(activity, ModsActivity::class.java)
+        findPreference("pref_game_settings").setOnPreferenceClickListener {
+            val intent = Intent(activity, SettingsActivity::class.java)
             this.startActivity(intent)
             true
+        }
+
+        findPreference("pref_mods").setOnPreferenceClickListener {
+            // Just prevent crash here if data files are not selected
+            val sharedPref = preferenceScreen.sharedPreferences
+            val inst = GameInstaller(sharedPref.getString("game_files", "")!!)
+            if (!inst.check()) {
+            AlertDialog.Builder(getActivity())
+                .setTitle(R.string.no_data_files_title)
+                .setMessage(R.string.no_data_files_message)
+                .setPositiveButton(android.R.string.ok) { _: DialogInterface, _: Int -> }
+                .show()
+
+                false
+            }
+            else
+            {
+                val intent = Intent(activity, ModsActivity::class.java)
+                this.startActivity(intent)
+                true
+            }
         }
 
         findPreference("game_files").setOnPreferenceClickListener {
@@ -182,6 +204,17 @@ class FragmentSettings : PreferenceFragment(), OnSharedPreferenceChangeListener 
         val sharedPref = preferenceScreen.sharedPreferences
         findPreference("pref_gamma").isEnabled =
                 sharedPref.getString("pref_graphicsLibrary_v2", "") != "gles1"
+
+	var isnohighpenabled = false;
+        if(sharedPref.getString("pref_shadersDir_v2", "") == "modified")
+		isnohighpenabled = true
+        findPreference("pref_nohighp").isEnabled = isnohighpenabled
+/*
+	var isAdditionalAnimSourcesEnabled = false;
+        if(sharedPref.getBoolean("gs_use_additional_animation_sources", false) == true) isAdditionalAnimSourcesEnabled = true
+        findPreference("gs_weapon_sheating").isEnabled = isAdditionalAnimSourcesEnabled
+        findPreference("gs_shield_sheating").isEnabled = isAdditionalAnimSourcesEnabled
+*/
     }
 
 }

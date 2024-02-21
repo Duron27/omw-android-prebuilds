@@ -35,6 +35,10 @@ import org.libsdl.app.SDLActivity
 import ui.activity.GameActivity
 import ui.activity.MouseMode
 
+import android.graphics.BitmapFactory
+import constants.Constants
+import java.io.File
+
 const val VIRTUAL_SCREEN_WIDTH = 1024
 const val VIRTUAL_SCREEN_HEIGHT = 768
 const val CONTROL_DEFAULT_SIZE = 70
@@ -54,6 +58,7 @@ const val TOP_BAR_SPACING = 90
  */
 open class OscElement(
         val uniqueId: String,
+        val iconName: String,
         var visibility: OscVisibility,
         val defaultX: Int,
         val defaultY: Int,
@@ -177,6 +182,7 @@ open class OscElement(
 
 class OscImageButton(
         uniqueId: String,
+        iconName: String,
         visibility: OscVisibility,
         private val imageSrc: Int,
         defaultX: Int,
@@ -184,11 +190,16 @@ class OscImageButton(
         private val keyCode: Int,
         private val needMouse: Boolean = false,
         defaultSize: Int = CONTROL_DEFAULT_SIZE
-) : OscElement(uniqueId, visibility, defaultX, defaultY, defaultSize) {
+) : OscElement(uniqueId, iconName, visibility, defaultX, defaultY, defaultSize) {
 
     override fun makeView(ctx: Context) {
         val v = ImageView(ctx)
-        v.setImageResource(imageSrc)
+
+        if (File(Constants.USER_FILE_STORAGE + "/icons/" + iconName).exists())
+            v.setImageBitmap(BitmapFactory.decodeFile(Constants.USER_FILE_STORAGE + "/icons/" + iconName))
+        else
+            v.setImageResource(imageSrc)
+
         // fix blurry icons on old android
         v.scaleType = ImageView.ScaleType.FIT_XY
         v.setOnTouchListener(ButtonTouchListener(keyCode, needMouse))
@@ -201,17 +212,23 @@ class OscImageButton(
 
 class OscCustomButton(
     uniqueId: String,
+    iconName: String,
     visibility: OscVisibility,
     private val imageSrc: Int,
     defaultX: Int,
     defaultY: Int,
     private val handler: () -> Unit
-) : OscElement(uniqueId, visibility, defaultX, defaultY) {
+) : OscElement(uniqueId, iconName, visibility, defaultX, defaultY) {
 
     @SuppressLint("ClickableViewAccessibility")
     override fun makeView(ctx: Context) {
         val v = ImageView(ctx)
-        v.setImageResource(imageSrc)
+
+        if (File(Constants.USER_FILE_STORAGE + "/icons/" + iconName).exists())
+            v.setImageBitmap(BitmapFactory.decodeFile(Constants.USER_FILE_STORAGE + "/icons/" + iconName))
+        else
+            v.setImageResource(imageSrc)
+
         v.setOnTouchListener { _, motionEvent ->
             if (motionEvent.action == MotionEvent.ACTION_UP)
                 handler()
@@ -231,7 +248,7 @@ class OscJoystickLeft(
     defaultY: Int,
     defaultSize: Int,
     private val stick: Int
-) : OscElement(uniqueId, visibility, defaultX, defaultY, defaultSize) {
+) : OscElement(uniqueId, "", visibility, defaultX, defaultY, defaultSize) {
 
     override fun makeView(ctx: Context) {
         val v = JoystickLeft(ctx)
@@ -250,7 +267,7 @@ class OscJoystickRight(
     defaultY: Int,
     defaultSize: Int,
     private val stick: Int
-) : OscElement(uniqueId, visibility, defaultX, defaultY, defaultSize) {
+) : OscElement(uniqueId, "", visibility, defaultX, defaultY, defaultSize) {
 
     override fun makeView(ctx: Context) {
         val v = JoystickRight(ctx)
@@ -269,7 +286,7 @@ open class OscHiddenButton(
     defaultY: Int,
     private val title: String,
     private val keyCode: Int
-) : OscElement(uniqueId, visibility, defaultX, defaultY) {
+) : OscElement(uniqueId, "", visibility, defaultX, defaultY) {
 
     override fun makeView(ctx: Context) {
         val v = Button(ctx)
@@ -335,9 +352,9 @@ class Osc {
     var mouseVisible = false //< Mode where only mouse-switch icon is visible
     private var topVisible = true //< The controls located at the top hidden behind the hamburger toggle
     private var visibilityState = 0
-    private val btnMouse = OscCustomButton("mouse", OscVisibility.NULL,
+    private val btnMouse = OscCustomButton("mouse", "mouse.png", OscVisibility.NULL,
         R.drawable.mouse, TOP_BAR_SPACING * 6, 0) { toggleMouse() }
-    private val btnTopToggle = OscCustomButton("toggle", OscVisibility.NULL,
+    private val btnTopToggle = OscCustomButton("toggle", "toggle.png", OscVisibility.NULL,
         R.drawable.toggle, 0, 0) { toggleTopControls() }
 
     private val joystickLeft = OscJoystickLeft("joystickLeft", OscVisibility.NORMAL,
@@ -351,22 +368,22 @@ class Osc {
         joystickRight,
 
         btnTopToggle,
-        OscImageButton("inventory", OscVisibility.NULL,
+        OscImageButton("inventory", "inventory.png", OscVisibility.NULL,
             R.drawable.inventory, 940, 95, 3, true),
-        OscImageButton("crouch", OscVisibility.NORMAL,
+        OscImageButton("crouch", "sneak.png", OscVisibility.NORMAL,
                 R.drawable.sneak, 940 - TOP_BAR_SPACING, 0, 113),
-        OscImageButton("pause", OscVisibility.ESSENTIAL,
+        OscImageButton("pause", "pause.png", OscVisibility.ESSENTIAL,
             R.drawable.pause, 940, 0, KeyEvent.KEYCODE_ESCAPE),
-        OscImageButton("magic", OscVisibility.NORMAL,
+        OscImageButton("magic", "toggle_magic.png", OscVisibility.NORMAL,
             R.drawable.toggle_magic, 940, 450, KeyEvent.KEYCODE_R),
-        OscImageButton("weapon", OscVisibility.NORMAL,
+        OscImageButton("weapon", "toggle_weapon.png", OscVisibility.NORMAL,
             R.drawable.toggle_weapon, 940, 560, KeyEvent.KEYCODE_F),
-        OscAttackButton("fire", OscVisibility.ESSENTIAL,
+        OscAttackButton("fire", "attack.png", OscVisibility.ESSENTIAL,
             R.drawable.attack, 800, 315, 1, 120),
-        OscImageButton("use", OscVisibility.NORMAL,
+        OscImageButton("use", "use.png", OscVisibility.NORMAL,
             R.drawable.use, joystickLeft.defaultX + JOYSTICK_SIZE/2 + 105, 630,
             KeyEvent.KEYCODE_SPACE),
-        OscImageButton("jump", OscVisibility.NORMAL, R.drawable.jump,
+        OscImageButton("jump", "jump.png", OscVisibility.NORMAL, R.drawable.jump,
             joystickRight.defaultX + JOYSTICK_SIZE/2 - 105 - CONTROL_DEFAULT_SIZE,
             630, KeyEvent.KEYCODE_E)
     )
@@ -382,7 +399,7 @@ class Osc {
         val btnColumnSpacing = 65
 
         // Fn buttons: F1, F3, F4, F10, F11 are the only ones we care about
-        arrayOf(1, 3, 4, 10, 11).forEachIndexed{ i, el ->
+        arrayOf(1, 2, 3, 4, 10, 11).forEachIndexed{ i, el ->
             val code = 130 + el
             val column = (i + 1) / 4 + 2
             val row = (i + 1) % 4 + 1
@@ -404,15 +421,15 @@ class Osc {
             0, btnRowSpacing, "QP", quickButtons)
 
         topButtons = arrayListOf(
-            OscImageButton("changePerson", OscVisibility.NORMAL,
+            OscImageButton("changePerson", "third_person.png", OscVisibility.NORMAL,
                 R.drawable.third_person, TOP_BAR_SPACING * 1, 0, KeyEvent.KEYCODE_TAB),
-            OscImageButton("quickSave", OscVisibility.NORMAL,
+            OscImageButton("quickSave", "save.png", OscVisibility.NORMAL,
                 R.drawable.save, TOP_BAR_SPACING * 2, 0, 135),
-            OscImageButton("diary", OscVisibility.ESSENTIAL,
+            OscImageButton("diary", "journal.png", OscVisibility.ESSENTIAL,
                 R.drawable.journal, TOP_BAR_SPACING * 3, 0, KeyEvent.KEYCODE_J),
-            OscImageButton("wait", OscVisibility.NORMAL,
+            OscImageButton("wait", "wait.png", OscVisibility.NORMAL,
                 R.drawable.wait, TOP_BAR_SPACING * 4, 0, KeyEvent.KEYCODE_T),
-            OscCustomButton("keyboard", OscVisibility.NULL,
+            OscCustomButton("keyboard", "keyboard.png", OscVisibility.NULL,
                 R.drawable.keyboard, TOP_BAR_SPACING * 5, 0) { toggleKeyboard() },
             btnMouse
         )

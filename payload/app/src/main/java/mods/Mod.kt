@@ -24,7 +24,9 @@ import org.jetbrains.anko.db.*
 
 enum class ModType(val v: Int) {
     Plugin(1),
-    Resource(2);
+    Resource(2),
+    Dir(3),
+    Groundcover(4);
 
     companion object {
         private val reverseValues: Map<Int, ModType> = values().associate { it.v to it }
