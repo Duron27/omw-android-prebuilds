@@ -194,11 +194,13 @@ RUN wget -c https://github.com/kcat/openal-soft/archive/${OPENAL_VERSION}.tar.gz
         -DALSOFT_BACKEND_WAVE=OFF && \
     make -j $(nproc) && make install 1> /dev/null
 
-
 # Setup BOOST
+ENV JAM=/root/src/boost-${BOOST_VERSION}/user-config.jam
 RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VERSION}/boost-${BOOST_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
-    cd ${HOME}/src/boost-${BOOST_VERSION} && using clang : android : ${TOOLCHAIN}/bin/clang++ --target=${ARCH}-none-linux-android${API} --sysroot=${TOOLCHAIN}/sysroot ; > user-config.jam && \
+        cd ${HOME}/src/boost-${BOOST_VERSION} && \
+        echo "using clang : aarch64 : ${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++ ;" >> ${JAM} && \
     ./bootstrap.sh \
+        --with-toolset=clang \
         prefix=${PREFIX} && \
     ./b2 \
         -j4 \
@@ -206,11 +208,15 @@ RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VE
         --with-program_options \
         --with-system \
         --with-iostreams \
+        --with-regex \
         --prefix=${PREFIX} \
         --ignore-site-config \
-        --user-config=user-config.jam \
+        --user-config=${JAM} \
         toolset=clang \
+        binary-format=elf \
+        abi=aapcs \
         address-model=64 \
+        architecture=arm \
         variant=release \
         target-os=android \
         threading=multi \
@@ -219,14 +225,11 @@ RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VE
         runtime-link=static \
         install
 
-
-#RUN cd /root/src/ && wget -c  https://github.com/dec1/Boost-for-Android/releases/download/ndk_26b_boost_1.83.0/ndk_26b_boost_1.83.0.zip && unzip ndk_26b_boost_1.83.0.zip && cd /root/src/ndk_26c_boost_1.83.0/include/ && cp -r boost /root/prefix/include && cd /root/src/ndk_26c_boost_1.83.0/libs/arm64-v8a/static/ && cp -r  * /root/prefix/lib/
-
 RUN $RANLIB ${PREFIX}/lib/libboost_filesystem.a
 RUN $RANLIB ${PREFIX}/lib/libboost_program_options.a
 RUN $RANLIB ${PREFIX}/lib/libboost_system.a
 RUN $RANLIB ${PREFIX}/lib/libboost_iostreams.a
-#RUN $RANLIB ${PREFIX}/lib/libboost_regex.a
+RUN $RANLIB ${PREFIX}/lib/libboost_regex.a
 
 # Setup FFMPEG_VERSION
 RUN wget -c http://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 -O - | tar -xjf - -C ${HOME}/src/ && \
