@@ -28,8 +28,8 @@ ENV SDK_CMDLINE_TOOLS=10406996_latest
 ENV PLATFORM_TOOLS_VERSION=29.0.0
 ENV JAVA_VERSION=17
 
+# Version of Release
 ENV APP_VERSION=0.49
-ENV APPLICATION_ID="is.xyz.omw_nightly"
 
 RUN dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
     && dnf install -y xz p7zip bzip2 libstdc++-devel glibc-devel unzip which wget redhat-lsb-core python-devel doxygen nano gcc-c++ git java-11-openjdk java-${JAVA_VERSION}-openjdk\
@@ -420,13 +420,13 @@ RUN rm -rf "${DST}" && mkdir -p "${DST}"
 # Copy over Resources
 RUN cp -r "${SRC}/resources" "${DST}"
 
-# global config
+# Global Config
 RUN mkdir -p "${DST}/openmw/"
 RUN cp "${SRC}/defaults.bin" "${DST}/openmw/"
 RUN cp "${SRC}/gamecontrollerdb.txt" "${DST}/openmw/"
 RUN cat "${SRC}/openmw.cfg" | grep -v "data=" | grep -v "data-local=" >> "${DST}/openmw/openmw.base.cfg"
 RUN cat "/root/payload/app/openmw.base.cfg" >> "${DST}/openmw/openmw.base.cfg"
-RUN mkdir -p /root/payload/app/src/main/assets/libopenmw/resources && cd $_ && echo "${APP_VERSION}" > version
+RUN mkdir -p /root/payload/app/src/main/assets/libopenmw/resources && cd $_ && echo "${APP_VERSION}" >> version
 
 # licensing info
 RUN cp "/root/payload/3rdparty-licenses.txt" "${DST}"
@@ -435,5 +435,5 @@ RUN cp "/root/payload/3rdparty-licenses.txt" "${DST}"
 RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/*.so
 
 # Build the APK!
-#RUN cd /root/payload/ && ./gradlew assembleNightlyDebug -Dorg.gradle.java.home=/usr/lib/jvm/java-11-openjdk-11.0.22.0.7-1.fc39.x86_64
+RUN cd /root/payload/ && ./gradlew assembleNightlyDebug -Dorg.gradle.java.home=/usr/lib/jvm/java-11-openjdk-11.0.22.0.7-1.fc39.x86_64
 
