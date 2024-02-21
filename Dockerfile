@@ -27,7 +27,10 @@ ENV NDK_VERSION=26.1.10909125
 ENV SDK_CMDLINE_TOOLS=10406996_latest
 ENV PLATFORM_TOOLS_VERSION=29.0.0
 ENV JAVA_VERSION=17
-ENV APP_VERSION=1.0
+
+ENV APP_VERSION=0.49
+ENV APPLICATION_ID="is.xyz.omw_nightly"
+
 RUN dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
     && dnf install -y xz p7zip bzip2 libstdc++-devel glibc-devel unzip which wget redhat-lsb-core python-devel doxygen nano gcc-c++ git java-11-openjdk java-${JAVA_VERSION}-openjdk\
     cmake
@@ -315,8 +318,6 @@ RUN wget -c https://github.com/rdiankov/collada-dom/archive/v${COLLADA_DOM_VERSI
         -DBoost_USE_STATIC_LIBS=ON \
         -DBoost_USE_STATIC_RUNTIME=ON \
         -DBoost_NO_SYSTEM_PATHS=ON \
-        -DHAVE_STRTOQ=0 \
-        -DUSE_FILE32API=1 \
         -DBoost_INCLUDE_DIR=${PREFIX}/include \
         -DCMAKE_CXX_FLAGS=-Dauto_ptr=unique_ptr && \
     make -j $(nproc) && make install
@@ -411,13 +412,28 @@ RUN cp ${PREFIX}/lib/{libopenal,libSDL2,libGL,libcollada-dom2.5-dp}.so /root/pay
 # copy over libc++_shared
 RUN find ${TOOLCHAIN}/sysroot/usr/lib/${NDK_TRIPLET} -iname "libc++_shared.so" -exec cp "{}" /root/payload/app/src/main/jniLibs/${ABI}/ \;
 
-RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libopenal.so
-RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libSDL2.so
-RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libGL.so
-RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libcollada-dom2.5-dp.so
-RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libc++_shared.so
 
+ENV DST=/root/payload/app/src/main/assets/libopenmw/
+ENV SRC=/root/src/openmw-${OPENMW_VERSION}/build/
+RUN rm -rf "${DST}" && mkdir -p "${DST}"
+
+# Copy over Resources
+RUN cp -r "${SRC}/resources" "${DST}"
+
+# global config
+RUN mkdir -p "${DST}/openmw/"
+RUN cp "${SRC}/defaults.bin" "${DST}/openmw/"
+RUN cp "${SRC}/gamecontrollerdb.txt" "${DST}/openmw/"
+RUN cat "${SRC}/openmw.cfg" | grep -v "data=" | grep -v "data-local=" >> "${DST}/openmw/openmw.base.cfg"
+RUN cat "/root/payload/app/openmw.base.cfg" >> "${DST}/openmw/openmw.base.cfg"
 RUN mkdir -p /root/payload/app/src/main/assets/libopenmw/resources && cd $_ && echo "${APP_VERSION}" > version
 
-RUN cd /root/payload/ && ./gradlew assembleNightlyDebug -Dorg.gradle.java.home=/usr/lib/jvm/java-11-openjdk-11.0.22.0.7-1.fc39.x86_64
+# licensing info
+RUN cp "/root/payload/3rdparty-licenses.txt" "${DST}"
+
+# Remove Debug Symbols
+RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/*.so
+
+# Build the APK!
+#RUN cd /root/payload/ && ./gradlew assembleNightlyDebug -Dorg.gradle.java.home=/usr/lib/jvm/java-11-openjdk-11.0.22.0.7-1.fc39.x86_64
 

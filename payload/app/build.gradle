@@ -27,7 +27,7 @@ android {
 
     defaultConfig {
         applicationId "is.xyz.omw"
-        versionCode 46
+        versionCode ${APP_VERSION}
         versionName calculateVersion()
 
         minSdkVersion 21
@@ -68,7 +68,7 @@ android {
 
         nightly {
             dimension "version"
-            applicationId "is.xyz.omw_nightly"
+            applicationId "${APPLICATION_ID}"
             versionNameSuffix "-nightly"
         }
     }
