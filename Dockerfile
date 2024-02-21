@@ -217,6 +217,8 @@ RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VE
         abi=aapcs \
         address-model=64 \
         architecture=arm \
+        cflags=-fPIC \
+        cxxflags=-fPIC \
         variant=release \
         target-os=android \
         threading=multi \
