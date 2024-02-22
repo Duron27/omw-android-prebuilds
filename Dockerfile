@@ -229,6 +229,7 @@ RUN wget -c http://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 -O - | t
         --enable-cross-compile \
         --cross-prefix=${TOOLCHAIN}/bin/llvm- \
         --cc=${NDK_TRIPLET}${API}-clang \
+        --cxx=${NDK_TRIPLET}${API}-clang++ \
         --arch=arm64 \
         --cpu=armv8-a \
         --prefix=${PREFIX} \
