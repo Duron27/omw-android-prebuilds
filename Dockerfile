@@ -373,6 +373,7 @@ RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/open
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/0009-windowmanagerimp-always-show-mouse-when-possible-pat.patch
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/0010-android-fix-context-being-lost-on-app-minimize.patch
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/fix-build.patch
+RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/shaders.patch
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/psa.patch
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/sdlfixreversed.patch
 RUN patch ${HOME}/src/openmw-${OPENMW_VERSION}/CMakeLists.txt < /root/patches/openmw/openmw_ignoreffmpegversion.patch
