@@ -227,6 +227,7 @@ RUN wget -c http://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 -O - | t
         --disable-optimizations \
         --target-os=android \
         --enable-cross-compile \
+        --host=${NDK_TRIPLET}${API} \
         --cross-prefix=${TOOLCHAIN}/bin/llvm- \
         --cc=${NDK_TRIPLET}${API}-clang \
         --cxx=${NDK_TRIPLET}${API}-clang++ \
