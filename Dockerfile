@@ -226,8 +226,7 @@ RUN $RANLIB ${PREFIX}/lib/libboost_regex.a
 RUN wget -c http://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 -O - | tar -xjf - -C ${HOME}/src/ && \
     mkdir -p ${HOME}/src/ffmpeg-${FFMPEG_VERSION} && cd $_ && \
     ${HOME}/src/ffmpeg-${FFMPEG_VERSION}/configure \
-        --disable-asm \
-        --disable-optimizations \
+        ${COMMON_AUTOCONF_FLAGS} \
         --target-os=android \
         --enable-cross-compile \ 
         --cross-prefix=${TOOLCHAIN}/bin/llvm- \
