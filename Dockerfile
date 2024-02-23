@@ -97,6 +97,7 @@ ENV COMMON_CMAKE_ARGS \
   "-DCMAKE_FIND_ROOT_PATH=${PREFIX}" \
   "-DCMAKE_CXX_COMPILER=${NDK_TRIPLET}${API}-clang++" \
   "-DCMAKE_CC_COMPILER=${NDK_TRIPLET}${API}-clang" \
+  "-DCMAKE_ASM_FLAGS=--target=${NDK_TRIPLET}${API}" \
   "-DHAVE_LD_VERSION_SCRIPT=OFF"
 
 ENV COMMON_AUTOCONF_FLAGS="--enable-static --disable-shared --prefix=${PREFIX} --host=${NDK_TRIPLET}${API}"
@@ -227,6 +228,8 @@ RUN wget -c http://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 -O - | t
     mkdir -p ${HOME}/src/ffmpeg-${FFMPEG_VERSION} && cd $_ && \
     ${HOME}/src/ffmpeg-${FFMPEG_VERSION}/configure \
         ${COMMON_AUTOCONF_FLAGS} \
+        --disable-asm \
+        --disable-optimizations \
         --target-os=android \
         --enable-cross-compile \ 
         --cross-prefix=${TOOLCHAIN}/bin/llvm- \
