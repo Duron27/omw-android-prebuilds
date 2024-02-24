@@ -22,15 +22,12 @@ ENV COLLADA_DOM_VERSION=2.5.0
 ENV OSG_VERSION=69cfecebfb6dc703b42e8de39eed750a84a87489
 ENV LZ4_VERSION=1.9.3
 ENV LUAJIT_VERSION=2.1.ROLLING
-ENV OPENMW_VERSION=c1b9beb7632a324e7fb7569b288678a4e5f26549
+ENV OPENMW_VERSION=19a6fd4e1be0b9928940a575f00d31b5af76beb5
 ENV NDK_VERSION=26.1.10909125
 ENV SDK_CMDLINE_TOOLS=10406996_latest
 ENV PLATFORM_TOOLS_VERSION=29.0.0
 ENV JAVA_VERSION=17
-
-# Version of Release
-ENV APP_VERSION=0.49
-
+ENV APP_VERSION=1.0
 RUN dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
     && dnf install -y xz p7zip bzip2 libstdc++-devel glibc-devel unzip which wget redhat-lsb-core python-devel doxygen nano gcc-c++ git java-11-openjdk java-${JAVA_VERSION}-openjdk\
     cmake
@@ -46,9 +43,13 @@ ENV PREFIX=/root/prefix
 
 RUN cd ${HOME}/src && wget https://github.com/unicode-org/icu/archive/refs/tags/release-${LIBICU_VERSION}.zip && unzip -o ${HOME}/src/release-${LIBICU_VERSION}.zip && rm -rf release-${LIBICU_VERSION}.zip
 RUN wget https://dl.google.com/android/repository/commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip && unzip commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip && mkdir -p ${HOME}/Android/cmdline-tools/ && mv cmdline-tools/ ${HOME}/Android/cmdline-tools/latest && rm commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip
-RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
-RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "ndk;${NDK_VERSION}" "platforms;android-28" "ndk;21.0.6113669" "platform-tools" "build-tools;29.0.2" "emulator" --channel=0
-RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
+RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses
+RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "ndk;${NDK_VERSION}" --channel=0
+RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install emulator
+RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-28"
+RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "platform-tools"
+RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "build-tools;29.0.2"
+RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses
 
 #RUN wget https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip
 
@@ -58,22 +59,23 @@ COPY --chmod=0755 payload /root/payload
 #Setup ICU for the Host
 RUN mkdir -p ${HOME}/src/icu-host-build && cd $_ && ${HOME}/src/icu-release-70-1/icu4c/source/configure --disable-tests --disable-samples --disable-icuio --disable-extras CC="gcc" CXX="g++" && make -j $(nproc)
 
-ENV PATH=$PATH:/root/Android/cmdline-tools/latest/bin/:/root/Android/ndk/${NDK_VERSION}/:/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64:/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin:/root/prefix/include:/root/prefix/lib:/root/prefix/
+ENV PATH=$PATH:/root/Android/cmdline-tools/latest/bin/
+ENV PATH=$PATH:/root/Android/ndk/${NDK_VERSION}/
+ENV PATH=$PATH:/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64
+ENV PATH=$PATH:/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin
+ENV PATH=$PATH:/root/prefix/include:/root/prefix/lib:/root/prefix/
 
 # NDK Settings
 ENV API=21
 ENV ABI=arm64-v8a
-ENV ARCH=aarch64
-ENV NDK_TRIPLET=${ARCH}-linux-android
+ENV NDK_TRIPLET=aarch64-linux-android
 ENV TOOLCHAIN=/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64
 ENV AR=${TOOLCHAIN}/bin/llvm-ar
-ENV LD=${TOOLCHAIN}/bin/ld.lld
+ENV LD=${TOOLCHAIN}/bin/ld
 ENV RANLIB=${TOOLCHAIN}/bin/llvm-ranlib
 ENV STRIP=${TOOLCHAIN}/bin/llvm-strip
 ENV CC=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang
 ENV CXX=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++
-#ENV clang=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang
-#ENV clang++=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++
 
 
 # Global C, CXX and LDFLAGS
@@ -97,7 +99,6 @@ ENV COMMON_CMAKE_ARGS \
   "-DCMAKE_FIND_ROOT_PATH=${PREFIX}" \
   "-DCMAKE_CXX_COMPILER=${NDK_TRIPLET}${API}-clang++" \
   "-DCMAKE_CC_COMPILER=${NDK_TRIPLET}${API}-clang" \
-  "-DCMAKE_ASM_FLAGS=--target=${NDK_TRIPLET}${API}" \
   "-DHAVE_LD_VERSION_SCRIPT=OFF"
 
 ENV COMMON_AUTOCONF_FLAGS="--enable-static --disable-shared --prefix=${PREFIX} --host=${NDK_TRIPLET}${API}"
@@ -188,7 +189,7 @@ RUN wget -c https://github.com/kcat/openal-soft/archive/${OPENAL_VERSION}.tar.gz
 ENV JAM=/root/src/boost-${BOOST_VERSION}/user-config.jam
 RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VERSION}/boost-${BOOST_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
         cd ${HOME}/src/boost-${BOOST_VERSION} && \
-        echo "using clang : ${ARCH} : ${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++ ;" >> ${JAM} && \
+        echo "using clang : aarch64 : ${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++ ;" >> ${JAM} && \
     ./bootstrap.sh \
         --with-toolset=clang \
         prefix=${PREFIX} && \
@@ -227,8 +228,10 @@ RUN $RANLIB ${PREFIX}/lib/libboost_regex.a
 RUN wget -c http://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 -O - | tar -xjf - -C ${HOME}/src/ && \
     mkdir -p ${HOME}/src/ffmpeg-${FFMPEG_VERSION} && cd $_ && \
     ${HOME}/src/ffmpeg-${FFMPEG_VERSION}/configure \
+        --disable-asm \
+        --disable-optimizations \
         --target-os=android \
-        --enable-cross-compile \ 
+        --enable-cross-compile \
         --cross-prefix=${TOOLCHAIN}/bin/llvm- \
         --cc=${NDK_TRIPLET}${API}-clang \
         --arch=arm64 \
@@ -320,6 +323,8 @@ RUN wget -c https://github.com/rdiankov/collada-dom/archive/v${COLLADA_DOM_VERSI
         -DBoost_USE_STATIC_LIBS=ON \
         -DBoost_USE_STATIC_RUNTIME=ON \
         -DBoost_NO_SYSTEM_PATHS=ON \
+        -DHAVE_STRTOQ=0 \
+        -DUSE_FILE32API=1 \
         -DBoost_INCLUDE_DIR=${PREFIX}/include \
         -DCMAKE_CXX_FLAGS=-Dauto_ptr=unique_ptr && \
     make -j $(nproc) && make install
@@ -366,16 +371,17 @@ RUN wget -c https://github.com/openmw/osg/archive/${OSG_VERSION}.tar.gz -O - | t
         -DCMAKE_CXX_FLAGS=-Dauto_ptr=unique_ptr\ -I${PREFIX}/include/freetype2/ && \
     make -j $(nproc) && make install
 
+
+
 # Setup OPENMW_VERSION
 RUN wget -c https://github.com/OpenMW/openmw/archive/${OPENMW_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/ && \
     mkdir -p ${HOME}/src/openmw-${OPENMW_VERSION}/build && cd $_
-
+    
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/cmakefix.patch
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/0001-loadingscreen-disable-for-now.patch
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/0009-windowmanagerimp-always-show-mouse-when-possible-pat.patch
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/0010-android-fix-context-being-lost-on-app-minimize.patch
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/fix-build.patch
-RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/shaders.patch
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/psa.patch
 RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/sdlfixreversed.patch
 RUN patch ${HOME}/src/openmw-${OPENMW_VERSION}/CMakeLists.txt < /root/patches/openmw/openmw_ignoreffmpegversion.patch
@@ -415,28 +421,12 @@ RUN cp ${PREFIX}/lib/{libopenal,libSDL2,libGL,libcollada-dom2.5-dp}.so /root/pay
 # copy over libc++_shared
 RUN find ${TOOLCHAIN}/sysroot/usr/lib/${NDK_TRIPLET} -iname "libc++_shared.so" -exec cp "{}" /root/payload/app/src/main/jniLibs/${ABI}/ \;
 
+RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libopenal.so
+RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libSDL2.so
+RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libGL.so
+RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libcollada-dom2.5-dp.so
+RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libc++_shared.so
 
-ENV DST=/root/payload/app/src/main/assets/libopenmw/
-ENV SRC=/root/src/openmw-${OPENMW_VERSION}/build/
-RUN rm -rf "${DST}" && mkdir -p "${DST}"
+RUN mkdir -p /root/payload/app/src/main/assets/libopenmw/resources && cd $_ && echo "${APP_VERSION}" > version
 
-# Copy over Resources
-RUN cp -r "${SRC}/resources" "${DST}"
-
-# Global Config
-RUN mkdir -p "${DST}/openmw/"
-RUN cp "${SRC}/defaults.bin" "${DST}/openmw/"
-RUN cp "${SRC}/gamecontrollerdb.txt" "${DST}/openmw/"
-RUN cat "${SRC}/openmw.cfg" | grep -v "data=" | grep -v "data-local=" >> "${DST}/openmw/openmw.base.cfg"
-RUN cat "/root/payload/app/openmw.base.cfg" >> "${DST}/openmw/openmw.base.cfg"
-RUN mkdir -p /root/payload/app/src/main/assets/libopenmw/resources && cd $_ && echo "${APP_VERSION}" >> version
-
-# licensing info
-RUN cp "/root/payload/3rdparty-licenses.txt" "${DST}"
-
-# Remove Debug Symbols
-RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/*.so
-
-# Build the APK!
 RUN cd /root/payload/ && ./gradlew assembleNightlyDebug -Dorg.gradle.java.home=/usr/lib/jvm/java-11-openjdk-11.0.22.0.7-1.fc39.x86_64
-
