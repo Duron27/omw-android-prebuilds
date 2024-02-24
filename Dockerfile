@@ -427,6 +427,27 @@ RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libGL.so
 RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libcollada-dom2.5-dp.so
 RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/libc++_shared.so
 
+ENV DST=/root/payload/app/src/main/assets/libopenmw/
+ENV SRC=/root/src/openmw-${OPENMW_VERSION}/build/
+RUN rm -rf "${DST}" && mkdir -p "${DST}"
 RUN mkdir -p /root/payload/app/src/main/assets/libopenmw/resources && cd $_ && echo "${APP_VERSION}" > version
 
+# Copy over Resources
+RUN cp -r "${SRC}/resources" "${DST}"
+
+# Global Config
+RUN mkdir -p "${DST}/openmw/"
+RUN cp "${SRC}/defaults.bin" "${DST}/openmw/"
+RUN cp "${SRC}/gamecontrollerdb.txt" "${DST}/openmw/"
+RUN cat "${SRC}/openmw.cfg" | grep -v "data=" | grep -v "data-local=" >> "${DST}/openmw/openmw.base.cfg"
+RUN cat "/root/payload/app/openmw.base.cfg" >> "${DST}/openmw/openmw.base.cfg"
+RUN mkdir -p /root/payload/app/src/main/assets/libopenmw/resources && cd $_ && echo "${APP_VERSION}" >> version
+
+# licensing info
+RUN cp "/root/payload/3rdparty-licenses.txt" "${DST}"
+
+# Remove Debug Symbols
+RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/*.so
+
+# Build the APK!
 RUN cd /root/payload/ && ./gradlew assembleNightlyDebug -Dorg.gradle.java.home=/usr/lib/jvm/java-11-openjdk-11.0.22.0.7-1.fc39.x86_64
