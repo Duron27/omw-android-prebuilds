@@ -1,20 +1,19 @@
-diff --git a/components/misc/stringops.hpp b/components/misc/stringops.hpp
+diff --git a/components/misc/strings/format.hpp b/components/miscstrings/format.hpp
 index fe4be0000..b89185919 100644
---- a/components/misc/stringops.hpp
-+++ b/components/misc/stringops.hpp
-@@ -7,6 +7,7 @@
+--- a/components/misc/strings/format.hpp
++++ b/components/misc/strings/format.hpp
+@@ -9,6 +9,7 @@
  #include <string_view>
- #include <iterator>
- #include <functional>
+ #include <system_error>
+ #include <vector>
 +#include <boost/format.hpp>
  
  namespace Misc
  {
-@@ -167,13 +168,14 @@ public:
-     template <typename ... Args>
-     static std::string format(const char* fmt, Args const & ... args)
-     {
--        auto size = std::snprintf(nullptr, 0, fmt, argument(args) ...);
+@@ -55,12 +55,14 @@
+            if (size < 0)
+                throw std::system_error(errno, std::generic_category(), "Failed to compute resulting string size");
++
 +        /*auto size = std::snprintf(nullptr, 0, fmt, argument(args) ...);
          // Note: sprintf also writes a trailing null character. We should remove it.
          std::string ret(size+1, '\0');
@@ -24,6 +23,6 @@ index fe4be0000..b89185919 100644
 -        return ret;
 +        return ret;*/
 +        return boost::str((boost::format(fmt) % ... % args));
-     }
- 
-     template <typename ... Args>
+         
+      }
+  }

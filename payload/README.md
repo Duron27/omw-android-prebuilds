@@ -1,10 +1,13 @@
 THIS REPO IS NOT OFFICIALLY SUPPORTED BY OPENMW IN ANY WAY!
+
 If you have questions please do not flood the openmw discord.
 
-this repo and the gitlab one are based on the hard work of many people. most of the credit is not mine. 
+This repo and the github  one are based on the hard work of many people. most of the credit is not mine.
 
-This is a mirror of https://gitlab.com/cavebros/openmw-android
-just to clear up any confusion 
+https://github.com/Duron27/openmw--android
+is a mirror of this repo just to clear up any confusion
+
+
 
 # OpenMW for Android
 

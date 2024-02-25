@@ -27,7 +27,7 @@ android {
 
     defaultConfig {
         applicationId "is.xyz.omw"
-        versionCode 46
+        versionCode 49
         versionName calculateVersion()
 
         minSdkVersion 21
@@ -72,7 +72,8 @@ android {
             versionNameSuffix "-nightly"
         }
     }
-
+    ndkVersion '26.1.10909125'
+    
     applicationVariants.all { variant ->
         variant.outputs.all {
             outputFileName = "omw_${variant.buildType.name}_${defaultConfig.versionName}.apk"
