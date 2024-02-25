@@ -1,7 +1,6 @@
-WIP, doesn't work yet
 
-just build the docker and when its complete the apk will be inside the docker in /root/payload/app/build/outputs/apk/nightly/debug/omw_debug_1.0-46.apk
-
+# Copy the APK!
+sudo docker cp (number of docker):/openmw-0.49.apk openmw.apk
 
 #Delete the docker
 sudo docker rmi -f dockerfile .
