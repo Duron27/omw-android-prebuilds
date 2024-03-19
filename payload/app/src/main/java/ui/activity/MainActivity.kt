@@ -322,6 +322,7 @@ class MainActivity : AppCompatActivity() {
 
             // write everything to openmw.cfg
             File(Constants.OPENMW_CFG).writeText(output)
+	    File("/storage/emulated/0/omw_nightly/config/modlistbackup.cfg").writeText(output)
         } catch (e: IOException) {
             Log.e(TAG, "Failed to generate openmw.cfg.", e)
         }
