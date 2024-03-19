@@ -46,7 +46,7 @@ ENV PREFIX=/root/prefix
 RUN cd ${HOME}/src && wget https://github.com/unicode-org/icu/archive/refs/tags/release-${LIBICU_VERSION}.zip && unzip -o ${HOME}/src/release-${LIBICU_VERSION}.zip && rm -rf release-${LIBICU_VERSION}.zip
 RUN wget https://dl.google.com/android/repository/commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip && unzip commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip && mkdir -p ${HOME}/Android/cmdline-tools/ && mv cmdline-tools/ ${HOME}/Android/cmdline-tools/latest && rm commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip
 RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
-RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "ndk;${NDK_VERSION}" "platforms;android-28" "ndk;21.0.6113669" "platform-tools" "build-tools;29.0.2" "emulator" --channel=0
+RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "ndk;${NDK_VERSION}" "platforms;android-28" "platform-tools" "build-tools;29.0.2" "emulator" --channel=0
 RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
 #RUN wget https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip
 
@@ -328,8 +328,7 @@ RUN bash -c "rm ${PREFIX}/lib/libluajit*.so*"
 
 # Setup LIBCOLLADA_VERSION
 RUN wget -c https://github.com/rdiankov/collada-dom/archive/v${COLLADA_DOM_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/ && cd ${HOME}/src/collada-dom-${COLLADA_DOM_VERSION} && \
-    wget https://raw.githubusercontent.com/Duron27/Dockers/experimental/libcollada-minizip-fix.patch && \
-    patch -ruN dom/external-libs/minizip-1.1/ioapi.h < libcollada-minizip-fix.patch && \
+    patch -ruN dom/external-libs/minizip-1.1/ioapi.h < /root/patches/libcollada-minizip-fix.patch && \
     mkdir -p ${HOME}/src/collada-dom-${COLLADA_DOM_VERSION}/build && cd $_ && \
     cmake .. \
         ${COMMON_CMAKE_ARGS} \
