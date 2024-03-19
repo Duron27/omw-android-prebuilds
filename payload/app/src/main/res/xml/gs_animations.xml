@@ -41,13 +41,4 @@
 
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="First person">
-
-        <CheckBoxPreference
-            android:key="gs_hand_inertia"
-            android:title="Hand Inertia"
-            android:summary="Causes hands to chase view direction slightly when turning, instead of matching the camera perfectly."/>
-
-    </PreferenceCategory>
-
 </PreferenceScreen>

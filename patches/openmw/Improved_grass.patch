@@ -1,0 +1,928 @@
+From 25fc33957172327ff2a2cb1a0b5e062e839f4d6a Mon Sep 17 00:00:00 2001
+From: sisah <jirielbunda@seznam.cz>
+Date: Mon, 11 Mar 2024 04:55:37 -0400
+Subject: [PATCH] grass paging
+
+---
+ apps/openmw/mwrender/objectpaging.cpp         | 172 +++++++++++++++---
+ apps/openmw/mwrender/objectpaging.hpp         |   6 +-
+ apps/openmw/mwrender/renderingmanager.cpp     |  71 +++++++-
+ apps/openmw/mwrender/renderingmanager.hpp     |   4 +
+ apps/openmw/mwworld/worldimp.cpp              |   2 +-
+ .../settings/categories/groundcover.hpp       |   5 +-
+ components/terrain/quadtreeworld.cpp          |  12 ++
+ components/terrain/quadtreeworld.hpp          |   2 +
+ files/settings-default.cfg                    |  17 +-
+ files/shaders/CMakeLists.txt                  |   2 +
+ .../compatibility/groundcover_paging.frag     | 101 ++++++++++
+ .../compatibility/groundcover_paging.vert     | 156 ++++++++++++++++
+ 12 files changed, 515 insertions(+), 35 deletions(-)
+ create mode 100755 files/shaders/compatibility/groundcover_paging.frag
+ create mode 100755 files/shaders/compatibility/groundcover_paging.vert
+
+diff --git a/apps/openmw/mwrender/objectpaging.cpp b/apps/openmw/mwrender/objectpaging.cpp
+index f1bccc13c97..bbbc2ea4f2d 100644
+--- a/apps/openmw/mwrender/objectpaging.cpp
++++ b/apps/openmw/mwrender/objectpaging.cpp
+@@ -8,6 +8,8 @@
+ #include <osg/MatrixTransform>
+ #include <osg/Sequence>
+ #include <osg/Switch>
++#include <osg/AlphaFunc>
++#include <osg/BlendFunc>
+ #include <osgAnimation/BasicAnimationManager>
+ #include <osgUtil/IncrementalCompileOperation>
+ 
+@@ -43,6 +45,9 @@
+ 
+ #include <condition_variable>
+ 
++#include <components/shader/shadermanager.hpp>
++#include "apps/openmw/mwworld/groundcoverstore.hpp"
++
+ namespace MWRender
+ {
+ 
+@@ -140,6 +145,7 @@ namespace MWRender
+         bool mOptimizeBillboards = true;
+         LODRange mDistances = { 0.f, 0.f };
+         osg::Vec3f mViewVector;
++        bool mGroundcover = false;
+         osg::Node::NodeMask mCopyMask = ~0u;
+         mutable std::vector<const osg::Node*> mNodePath;
+ 
+@@ -160,8 +166,34 @@ namespace MWRender
+             if (!(node->getNodeMask() & mCopyMask))
+                 return nullptr;
+ 
++//            if (const osg::Drawable* d = node->asDrawable())
++//                return operator()(d);
++
++
+             if (const osg::Drawable* d = node->asDrawable())
+-                return operator()(d);
++            {
++                osg::Node* clone = operator()(d);
++                osg::Geometry* geom = clone ? clone->asGeometry() : nullptr;
++                if (!mGroundcover || !geom) return clone;
++
++                osg::Array* vertexArray = geom->getVertexArray();
++                if (!vertexArray || vertexArray->getType() != osg::Array::Vec3ArrayType) return clone;
++                osg::Vec3Array* vertices = static_cast<osg::Vec3Array*>(vertexArray);
++
++                // We should keep an original vertex array to animate groundcover page properly
++                osg::ref_ptr<osg::FloatArray> attrs = new osg::FloatArray(vertices->getNumElements());
++                for (unsigned int i = 0; i < vertices->getNumElements(); i++)
++                {
++                    (*attrs)[i] = (*vertices)[i].z();
++                }
++
++                //if (needvbo(geom))
++                    attrs->setVertexBufferObject(new osg::VertexBufferObject);
++
++                geom->setVertexAttribArray(1, attrs, osg::Array::BIND_PER_VERTEX);
++
++                return geom;
++            }
+ 
+             if (dynamic_cast<const osgParticle::ParticleProcessor*>(node))
+                 return nullptr;
+@@ -453,10 +485,12 @@ namespace MWRender
+         }
+     };
+ 
+-    ObjectPaging::ObjectPaging(Resource::SceneManager* sceneManager, ESM::RefId worldspace)
++    ObjectPaging::ObjectPaging(Resource::SceneManager* sceneManager, ESM::RefId worldspace, bool groundcover, const MWWorld::GroundcoverStore& store)
+         : GenericResourceManager<ChunkId>(nullptr, Settings::cells().mCacheExpiryDelay)
+         , Terrain::QuadTreeWorld::ChunkManager(worldspace)
+         , mSceneManager(sceneManager)
++        , mGroundcover(groundcover)
++        , mGroundcoverStore(store)
+         , mActiveGrid(Settings::terrain().mObjectPagingActiveGrid)
+         , mDebugBatches(Settings::terrain().mDebugChunks)
+         , mMergeFactor(Settings::terrain().mObjectPagingMergeFactor)
+@@ -465,6 +499,12 @@ namespace MWRender
+         , mMinSizeCostMultiplier(Settings::terrain().mObjectPagingMinSizeCostMultiplier)
+         , mRefTrackerLocked(false)
+     {
++        if (mGroundcover)
++        {
++            mMergeFactor = Settings::groundcover().mMergeFactor;
++            mGroundcoverDensity = Settings::groundcover().mDensity/100.f;
++            mMinSize = 0.01;
++        }
+     }
+ 
+     std::map<ESM::RefNum, ESM::CellRef> ObjectPaging::collectESM3References(
+@@ -472,6 +512,53 @@ namespace MWRender
+     {
+         std::map<ESM::RefNum, ESM::CellRef> refs;
+         const auto& store = MWBase::Environment::get().getWorld()->getStore();
++
++        if (mGroundcover)
++        {
++            for (int cellX = startCell.x(); cellX < startCell.x() + size; ++cellX)
++            {
++                for (int cellY = startCell.y(); cellY < startCell.y() + size; ++cellY)
++                {
++                    ESM::Cell cell;
++                    mGroundcoverStore.initCell(cell, cellX, cellY);
++                    if (cell.mContextList.empty()) 
++                        continue;
++
++                    float currentGroundcover = 0.f;
++                    for (size_t i = 0; i < cell.mContextList.size(); ++i)
++                    {
++                        try
++                        {
++                            const std::size_t index = static_cast<std::size_t>(cell.mContextList[i].index);
++                            const ESM::ReadersCache::BusyItem reader = readers.get(index);
++                            cell.restore(*reader, i);
++                            ESM::CellRef ref;
++                            bool deleted = false;
++                            while (cell.getNextRef(*reader, ref, deleted))
++                            {
++                                if (deleted)
++                                {
++                                    refs.erase(ref.mRefNum);
++                                    continue;
++                                }
++
++                                currentGroundcover += mGroundcoverDensity;
++                                if (currentGroundcover < 1.f) continue;
++                                currentGroundcover -= 1.f;
++
++                                refs[ref.mRefNum] = std::move(ref);
++                            }
++                        }
++                        catch (std::exception&)
++                        {
++                            continue;
++                        }
++                    }
++                }
++            }
++        }
++        else
++
+         for (int cellX = startCell.x(); cellX < startCell.x() + size; ++cellX)
+         {
+             for (int cellY = startCell.y(); cellY < startCell.y() + size; ++cellY)
+@@ -555,7 +642,7 @@ namespace MWRender
+             // TODO
+         }
+ 
+-        if (activeGrid)
++        if (activeGrid && !mGroundcover)
+         {
+             std::lock_guard<std::mutex> lock(mRefTrackerMutex);
+             for (auto ref : getRefTracker().mBlacklist)
+@@ -620,10 +707,18 @@ namespace MWRender
+                 continue;
+ 
+             int type = store.findStatic(ref.mRefID);
+-            std::string model = getModel(type, ref.mRefID, store);
++            std::string model;
++
++            if(mGroundcover)
++                model = mGroundcoverStore.getGroundcoverModel(ref.mRefID);
++            else
++                model = getModel(type, ref.mRefID, store);
++
+             if (model.empty())
+                 continue;
+-            model = Misc::ResourceHelpers::correctMeshPath(model);
++
++            if (!mGroundcover)
++                model = Misc::ResourceHelpers::correctMeshPath(model);
+ 
+             if (activeGrid && type != ESM::REC_STAT)
+             {
+@@ -656,22 +751,25 @@ namespace MWRender
+ 
+             osg::ref_ptr<const osg::Node> cnode = mSceneManager->getTemplate(model, false);
+ 
+-            if (activeGrid)
++            if (!mGroundcover)
+             {
+-                if (cnode->getNumChildrenRequiringUpdateTraversal() > 0
+-                    || SceneUtil::hasUserDescription(cnode, Constants::NightDayLabel)
+-                    || SceneUtil::hasUserDescription(cnode, Constants::HerbalismLabel)
+-                    || (cnode->getName() == "Collada visual scene group"
+-                        && dynamic_cast<const osgAnimation::BasicAnimationManager*>(cnode->getUpdateCallback())))
+-                    continue;
+-                else
+-                    refnumSet->mRefnums.push_back(pair.first);
+-            }
++                if (activeGrid)
++                {
++                    if (cnode->getNumChildrenRequiringUpdateTraversal() > 0
++                        || SceneUtil::hasUserDescription(cnode, Constants::NightDayLabel)
++                        || SceneUtil::hasUserDescription(cnode, Constants::HerbalismLabel)
++                        || (cnode->getName() == "Collada visual scene group"
++                            && dynamic_cast<const osgAnimation::BasicAnimationManager*>(cnode->getUpdateCallback())))
++                        continue;
++                    else
++                        refnumSet->mRefnums.push_back(pair.first);
++                }
+ 
+-            {
+-                std::lock_guard<std::mutex> lock(mRefTrackerMutex);
+-                if (getRefTracker().mDisabled.count(pair.first))
+-                    continue;
++                {
++                    std::lock_guard<std::mutex> lock(mRefTrackerMutex);
++                    if (getRefTracker().mDisabled.count(pair.first))
++                        continue;
++                }
+             }
+ 
+             float radius2 = cnode->getBound().radius2() * ref.mScale * ref.mScale;
+@@ -702,6 +800,7 @@ namespace MWRender
+         osg::ref_ptr<Resource::TemplateMultiRef> templateRefs = new Resource::TemplateMultiRef;
+         osgUtil::StateToCompile stateToCompile(0, nullptr);
+         CopyOp copyop;
++        copyop.mGroundcover = mGroundcover;
+         copyop.mCopyMask = copyMask;
+         for (const auto& pair : nodes)
+         {
+@@ -811,7 +910,7 @@ namespace MWRender
+         if (mergeGroup->getNumChildren())
+         {
+             SceneUtil::Optimizer optimizer;
+-            if (size > 1 / 8.f)
++            if (!mGroundcover && size > 1/8.f)
+             {
+                 optimizer.setViewPoint(relativeViewPoint);
+                 optimizer.setMergeAlphaBlending(true);
+@@ -845,9 +944,9 @@ namespace MWRender
+         }
+ 
+         group->getBound();
+-        group->setNodeMask(Mask_Static);
++        group->setNodeMask(mGroundcover ? Mask_Groundcover : Mask_Static);
+         osg::UserDataContainer* udc = group->getOrCreateUserDataContainer();
+-        if (activeGrid)
++        if (activeGrid && !mGroundcover)
+         {
+             std::sort(refnumSet->mRefnums.begin(), refnumSet->mRefnums.end());
+             refnumSet->mRefnums.erase(
+@@ -857,12 +956,34 @@ namespace MWRender
+         }
+         udc->addUserObject(templateRefs);
+ 
++        if (mGroundcover)
++        {
++            if (mSceneManager->getLightingMethod() != SceneUtil::LightingMethod::FFP)
++                group->setCullCallback(new SceneUtil::LightListCallback);
++
++            osg::StateSet* stateset = group->getOrCreateStateSet();
++            osg::ref_ptr<osg::AlphaFunc> alpha = new osg::AlphaFunc(osg::AlphaFunc::GEQUAL, 128.f / 255.f);
++            stateset->setAttributeAndModes(alpha.get(), osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
++            stateset->setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
++            stateset->setRenderBinDetails(0, "RenderBin", osg::StateSet::OVERRIDE_RENDERBIN_DETAILS);
++
++            mSceneManager->reinstateRemovedState(group);
++
++            static const osg::ref_ptr<osg::Program> programTemplate = mSceneManager->getShaderManager().getProgramTemplate()
++                ? Shader::ShaderManager::cloneProgram(mSceneManager->getShaderManager().getProgramTemplate())
++                : osg::ref_ptr<osg::Program>(new osg::Program);
++
++            programTemplate->addBindAttribLocation("originalHeight", 1);
++
++            mSceneManager->recreateShaders(group, "groundcover_paging", true, programTemplate);
++        }
++
+         return group;
+     }
+ 
+     unsigned int ObjectPaging::getNodeMask()
+     {
+-        return Mask_Static;
++        return mGroundcover ? Mask_Groundcover : Mask_Static;
+     }
+ 
+     struct ClearCacheFunctor
+@@ -1013,7 +1134,10 @@ namespace MWRender
+ 
+     void ObjectPaging::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+     {
+-        stats->setAttribute(frameNumber, "Object Chunk", mCache->getCacheSize());
++        if (mGroundcover)
++            stats->setAttribute(frameNumber, "Groundcover Chunk", mCache->getCacheSize());
++        else
++            stats->setAttribute(frameNumber, "Object Chunk", mCache->getCacheSize());
+     }
+ 
+ }
+diff --git a/apps/openmw/mwrender/objectpaging.hpp b/apps/openmw/mwrender/objectpaging.hpp
+index 6085887b9c6..bd3173554ec 100644
+--- a/apps/openmw/mwrender/objectpaging.hpp
++++ b/apps/openmw/mwrender/objectpaging.hpp
+@@ -14,6 +14,7 @@ namespace Resource
+ namespace MWWorld
+ {
+     class ESMStore;
++    class GroundcoverStore;
+ }
+ 
+ namespace ESM
+@@ -29,7 +30,7 @@ namespace MWRender
+     class ObjectPaging : public Resource::GenericResourceManager<ChunkId>, public Terrain::QuadTreeWorld::ChunkManager
+     {
+     public:
+-        ObjectPaging(Resource::SceneManager* sceneManager, ESM::RefId worldspace);
++        ObjectPaging(Resource::SceneManager* sceneManager, ESM::RefId worldspace, bool groundcover, const MWWorld::GroundcoverStore& store);
+         ~ObjectPaging() = default;
+ 
+         osg::ref_ptr<osg::Node> getChunk(float size, const osg::Vec2f& center, unsigned char lod, unsigned int lodFlags,
+@@ -59,6 +60,9 @@ namespace MWRender
+     private:
+         Resource::SceneManager* mSceneManager;
+         bool mActiveGrid;
++        bool mGroundcover;
++        float mGroundcoverDensity;
++        const MWWorld::GroundcoverStore& mGroundcoverStore;
+         bool mDebugBatches;
+         float mMergeFactor;
+         float mMinSize;
+diff --git a/apps/openmw/mwrender/renderingmanager.cpp b/apps/openmw/mwrender/renderingmanager.cpp
+index 2cfcd2fd37f..afcd6d2b6dc 100644
+--- a/apps/openmw/mwrender/renderingmanager.cpp
++++ b/apps/openmw/mwrender/renderingmanager.cpp
+@@ -161,6 +161,7 @@ namespace MWRender
+             , mFar(0.f)
+             , mWindSpeed(0.f)
+             , mSkyBlendingStartCoef(Settings::fog().mSkyBlendingStart)
++            , mGroundcoverFadeEnd(Settings::groundcover().mRenderingDistance)
+         {
+         }
+ 
+@@ -174,6 +175,7 @@ namespace MWRender
+             stateset->addUniform(new osg::Uniform("windSpeed", 0.0f));
+             stateset->addUniform(new osg::Uniform("playerPos", osg::Vec3f(0.f, 0.f, 0.f)));
+             stateset->addUniform(new osg::Uniform("useTreeAnim", false));
++            stateset->addUniform(new osg::Uniform("groundcoverFadeEnd", 0.f));
+         }
+ 
+         void apply(osg::StateSet* stateset, osg::NodeVisitor* nv) override
+@@ -184,6 +186,7 @@ namespace MWRender
+             stateset->getUniform("screenRes")->set(mScreenRes);
+             stateset->getUniform("windSpeed")->set(mWindSpeed);
+             stateset->getUniform("playerPos")->set(mPlayerPos);
++            stateset->getUniform("groundcoverFadeEnd")->set(mGroundcoverFadeEnd);
+         }
+ 
+         void setNear(float near) { mNear = near; }
+@@ -203,6 +206,7 @@ namespace MWRender
+         float mSkyBlendingStartCoef;
+         osg::Vec3f mPlayerPos;
+         osg::Vec2f mScreenRes;
++        float mGroundcoverFadeEnd;
+     };
+ 
+     class StateUpdater : public SceneUtil::StateSetUpdater
+@@ -452,6 +456,9 @@ namespace MWRender
+         mGroundcover = chunkMgr.mGroundcover.get();
+         mObjectPaging = chunkMgr.mObjectPaging.get();
+ 
++        mGroundcoverWorld = chunkMgr.mGroundcoverWorld.get();
++        mGroundcoverPaging = chunkMgr.mGroundcoverPaging.get();
++
+         mStateUpdater = new StateUpdater;
+         sceneRoot->addUpdateCallback(mStateUpdater);
+ 
+@@ -730,6 +737,9 @@ namespace MWRender
+         {
+             enableTerrain(true, store->getCell()->getWorldSpace());
+             mTerrain->loadCell(store->getCell()->getGridX(), store->getCell()->getGridY());
++
++            if (mGroundcoverWorld)
++                mGroundcoverWorld->loadCell(store->getCell()->getGridX(), store->getCell()->getGridY());
+         }
+     }
+     void RenderingManager::removeCell(const MWWorld::CellStore* store)
+@@ -742,6 +752,10 @@ namespace MWRender
+         {
+             getWorldspaceChunkMgr(store->getCell()->getWorldSpace())
+                 .mTerrain->unloadCell(store->getCell()->getGridX(), store->getCell()->getGridY());
++
++            if (mGroundcoverWorld)
++                getWorldspaceChunkMgr(store->getCell()->getWorldSpace())
++                    .mGroundcoverWorld->unloadCell(store->getCell()->getGridX(), store->getCell()->getGridY());
+         }
+ 
+         mWater->removeCell(store);
+@@ -761,8 +775,18 @@ namespace MWRender
+                 mGroundcover = newChunks.mGroundcover.get();
+                 mObjectPaging = newChunks.mObjectPaging.get();
+             }
++
++            if (newChunks.mGroundcoverWorld.get() != mGroundcoverWorld)
++            {
++                mGroundcoverWorld->enable(false);
++                mGroundcoverWorld = newChunks.mGroundcoverWorld.get();
++                mGroundcoverPaging = newChunks.mGroundcoverPaging.get();
++            }
+         }
+         mTerrain->enable(enable);
++
++        if (mGroundcoverWorld)
++            mGroundcoverWorld->enable(enable);
+     }
+ 
+     void RenderingManager::setSkyEnabled(bool enabled)
+@@ -1141,6 +1165,9 @@ namespace MWRender
+         notifyWorldSpaceChanged();
+         if (mObjectPaging)
+             mObjectPaging->clear();
++
++        if (mGroundcoverPaging)
++            mGroundcoverPaging->clear();
+     }
+ 
+     MWRender::Animation* RenderingManager::getAnimation(const MWWorld::Ptr& ptr)
+@@ -1268,6 +1295,9 @@ namespace MWRender
+         float distanceMult = std::cos(osg::DegreesToRadians(std::min(fov, 140.f)) / 2.f);
+         mTerrain->setViewDistance(mViewDistance * (distanceMult ? 1.f / distanceMult : 1.f));
+ 
++        if (mGroundcoverWorld)
++            mGroundcoverWorld->setViewDistance(Settings::groundcover().mRenderingDistance);
++        
+         if (mPostProcessor)
+         {
+             mPostProcessor->getStateUpdater()->setProjectionMatrix(mPerViewUniformStateUpdater->getProjectionMatrix());
+@@ -1320,9 +1350,10 @@ namespace MWRender
+ 
+         const float lodFactor = Settings::terrain().mLodFactor;
+         const bool groundcover = Settings::groundcover().mEnabled;
++        const bool groundcoverPaging = Settings::groundcover().mPaging;
+         const bool distantTerrain = Settings::terrain().mDistantTerrain;
+         const double expiryDelay = Settings::cells().mCacheExpiryDelay;
+-        if (distantTerrain || groundcover)
++        if (distantTerrain || groundcover || groundcoverPaging)
+         {
+             const int compMapResolution = Settings::terrain().mCompositeMapResolution;
+             const int compMapPower = Settings::terrain().mCompositeMapLevel;
+@@ -1336,20 +1367,47 @@ namespace MWRender
+             if (Settings::terrain().mObjectPaging)
+             {
+                 newChunkMgr.mObjectPaging
+-                    = std::make_unique<ObjectPaging>(mResourceSystem->getSceneManager(), worldspace);
++                    = std::make_unique<ObjectPaging>(mResourceSystem->getSceneManager(), worldspace, false, mGroundCoverStore);
+                 quadTreeWorld->addChunkManager(newChunkMgr.mObjectPaging.get());
+                 mResourceSystem->addResourceManager(newChunkMgr.mObjectPaging.get());
+             }
+-            if (groundcover)
++            if (!groundcoverPaging && groundcover)
+             {
+                 const float groundcoverDistance = Settings::groundcover().mRenderingDistance;
+-                const float density = Settings::groundcover().mDensity;
++                const float density = Settings::groundcover().mDensity/100.f;
+ 
+                 newChunkMgr.mGroundcover = std::make_unique<Groundcover>(
+                     mResourceSystem->getSceneManager(), density, groundcoverDistance, mGroundCoverStore);
+                 quadTreeWorld->addChunkManager(newChunkMgr.mGroundcover.get());
+                 mResourceSystem->addResourceManager(newChunkMgr.mGroundcover.get());
+             }
++            if (groundcoverPaging)
++            {
++                osg::ref_ptr<osg::Group> groundcoverRoot = new osg::Group;
++                groundcoverRoot->setNodeMask(Mask_Groundcover);
++                groundcoverRoot->setName("Groundcover Root");
++                mSceneRoot->addChild(groundcoverRoot);
++
++                float chunkSize = Settings::groundcover().mMinChunkSize;
++                if (chunkSize >= 1.0f)
++                    chunkSize = 1.0f;
++                else if (chunkSize >= 0.5f)
++                    chunkSize = 0.5f;
++                else if (chunkSize >= 0.25f)
++                    chunkSize = 0.25f;
++                else if (chunkSize != 0.125f)
++                    chunkSize = 0.125f;
++
++                auto groundcoverWorld = std::make_unique<Terrain::QuadTreeWorld>(groundcoverRoot, mTerrainStorage.get(), worldspace, Mask_Groundcover, lodFactor, chunkSize);
++                newChunkMgr.mGroundcoverPaging = std::make_unique<ObjectPaging>(mResourceSystem->getSceneManager(), worldspace, true, mGroundCoverStore);
++                static_cast<Terrain::QuadTreeWorld*>(groundcoverWorld.get())->addChunkManager(newChunkMgr.mGroundcoverPaging.get());
++                mResourceSystem->addResourceManager(newChunkMgr.mGroundcoverPaging.get());
++
++                groundcoverWorld->setActiveGrid(osg::Vec4i(0, 0, 0, 0));
++
++                newChunkMgr.mGroundcoverWorld = std::move(groundcoverWorld);
++            }
++
+             newChunkMgr.mTerrain = std::move(quadTreeWorld);
+         }
+         else
+@@ -1651,6 +1709,11 @@ namespace MWRender
+             mTerrain->rebuildViews();
+             return true;
+         }
++        if (mGroundcoverPaging && mGroundcoverPaging->unlockCache())
++        {
++            mGroundcoverWorld->rebuildViews();
++            return true;
++        }
+         return false;
+     }
+     void RenderingManager::getPagedRefnums(const osg::Vec4i& activeGrid, std::vector<ESM::RefNum>& out)
+diff --git a/apps/openmw/mwrender/renderingmanager.hpp b/apps/openmw/mwrender/renderingmanager.hpp
+index 22ef987c013..8413b346182 100644
+--- a/apps/openmw/mwrender/renderingmanager.hpp
++++ b/apps/openmw/mwrender/renderingmanager.hpp
+@@ -286,6 +286,8 @@ namespace MWRender
+         {
+             std::unique_ptr<Terrain::World> mTerrain;
+             std::unique_ptr<ObjectPaging> mObjectPaging;
++            std::unique_ptr<Terrain::World> mGroundcoverWorld;
++            std::unique_ptr<ObjectPaging> mGroundcoverPaging;
+             std::unique_ptr<Groundcover> mGroundcover;
+         };
+ 
+@@ -326,6 +328,8 @@ namespace MWRender
+         std::unique_ptr<TerrainStorage> mTerrainStorage;
+         ObjectPaging* mObjectPaging;
+         Groundcover* mGroundcover;
++        Terrain::World* mGroundcoverWorld;
++        ObjectPaging* mGroundcoverPaging;
+         std::unique_ptr<SkyManager> mSky;
+         std::unique_ptr<FogManager> mFog;
+         std::unique_ptr<ScreenshotManager> mScreenshotManager;
+diff --git a/apps/openmw/mwworld/worldimp.cpp b/apps/openmw/mwworld/worldimp.cpp
+index 07334396b79..b8d22909b7a 100644
+--- a/apps/openmw/mwworld/worldimp.cpp
++++ b/apps/openmw/mwworld/worldimp.cpp
+@@ -2865,7 +2865,7 @@ namespace MWWorld
+     void World::loadGroundcoverFiles(const Files::Collections& fileCollections,
+         const std::vector<std::string>& groundcoverFiles, ToUTF8::Utf8Encoder* encoder, Loading::Listener* listener)
+     {
+-        if (!Settings::groundcover().mEnabled)
++        if (!Settings::groundcover().mEnabled && !Settings::groundcover().mPaging)
+             return;
+ 
+         Log(Debug::Info) << "Loading groundcover:";
+diff --git a/components/settings/categories/groundcover.hpp b/components/settings/categories/groundcover.hpp
+index 78615a4e763..47a0072f9ae 100644
+--- a/components/settings/categories/groundcover.hpp
++++ b/components/settings/categories/groundcover.hpp
+@@ -19,7 +19,10 @@ namespace Settings
+         using WithIndex::WithIndex;
+ 
+         SettingValue<bool> mEnabled{ mIndex, "Groundcover", "enabled" };
+-        SettingValue<float> mDensity{ mIndex, "Groundcover", "density", makeClampSanitizerFloat(0, 1) };
++        SettingValue<bool> mPaging{ mIndex, "Groundcover", "paging" };
++        SettingValue<float> mMinChunkSize{ mIndex, "Groundcover", "min chunk size", makeMaxSanitizerFloat(0) };
++        SettingValue<float> mMergeFactor{ mIndex, "Groundcover", "merge factor", makeMaxSanitizerFloat(0) };
++        SettingValue<float> mDensity{ mIndex, "Groundcover", "density", makeClampSanitizerFloat(0, 100) };
+         SettingValue<float> mRenderingDistance{ mIndex, "Groundcover", "rendering distance", makeMaxSanitizerFloat(0) };
+         SettingValue<int> mStompMode{ mIndex, "Groundcover", "stomp mode", makeEnumSanitizerInt({ 0, 1, 2 }) };
+         SettingValue<int> mStompIntensity{ mIndex, "Groundcover", "stomp intensity",
+diff --git a/components/terrain/quadtreeworld.cpp b/components/terrain/quadtreeworld.cpp
+index bdf9f567902..97ef8763d4d 100644
+--- a/components/terrain/quadtreeworld.cpp
++++ b/components/terrain/quadtreeworld.cpp
+@@ -304,6 +304,18 @@ namespace Terrain
+         }
+     }
+ 
++    QuadTreeWorld::QuadTreeWorld(osg::Group *parent, Storage *storage, ESM::RefId worldspace, int nodeMask, float lodFactor, float chunkSize)
++        : TerrainGrid(parent, storage, worldspace, nodeMask)
++        , mViewDataMap(new ViewDataMap)
++        , mQuadTreeBuilt(false)
++        , mLodFactor(lodFactor)
++        , mVertexLodMod(0)
++        , mViewDistance(std::numeric_limits<float>::max())
++        , mMinSize(chunkSize)
++        , mDebugTerrainChunks(false)
++    {
++    }
++
+     QuadTreeWorld::~QuadTreeWorld() {}
+ 
+     /// get the level of vertex detail to render this node at, expressed relative to the native resolution of the vertex
+diff --git a/components/terrain/quadtreeworld.hpp b/components/terrain/quadtreeworld.hpp
+index fa800d26551..de7d4ff7619 100644
+--- a/components/terrain/quadtreeworld.hpp
++++ b/components/terrain/quadtreeworld.hpp
+@@ -35,6 +35,8 @@ namespace Terrain
+             int compMapResolution, float comMapLevel, float lodFactor, int vertexLodMod, float maxCompGeometrySize,
+             bool debugChunks, ESM::RefId worldspace, double expiryDelay);
+ 
++        QuadTreeWorld(osg::Group *parent, Storage *storage, ESM::RefId worldspace, int nodeMask, float lodFactor, float chunkSize);
++
+         ~QuadTreeWorld();
+ 
+         void accept(osg::NodeVisitor& nv);
+diff --git a/files/settings-default.cfg b/files/settings-default.cfg
+index 4a90a46cc5c..ee1590a1328 100644
+--- a/files/settings-default.cfg
++++ b/files/settings-default.cfg
+@@ -1141,12 +1141,21 @@ write nif debug log = false
+ 
+ [Groundcover]
+ 
+-# enable separate groundcover handling
++# enable separate groundcover handling (instancing)
+ enabled = false
+ 
+-# A groundcover density (0.0 <= value <= 1.0)
+-# 1.0 means 100% density
+-density = 1.0
++# enable separate groundcover handling (paging)
++paging = false
++
++# A minimum size of groundcover chunk in cells (0.125, 0.25, 0.5, 1.0) (paging only)
++min chunk size = 0.25
++
++# Affects the likelyhood of more complex objects to get paged. Higher values improve visual fidelity at the cost of performance and RAM. (paging only)
++merge factor = 2000;
++
++# A groundcover density (0 <= value <= 100)
++# 100 means 100% density
++density = 100
+ 
+ # A maximum distance in game units on which groundcover is rendered.
+ rendering distance = 6144.0
+diff --git a/files/shaders/CMakeLists.txt b/files/shaders/CMakeLists.txt
+index ca0c264ade7..1263d7d5178 100644
+--- a/files/shaders/CMakeLists.txt
++++ b/files/shaders/CMakeLists.txt
+@@ -33,6 +33,8 @@ set(SHADER_FILES
+     compatibility/fog.glsl
+     compatibility/groundcover.vert
+     compatibility/groundcover.frag
++    compatibility/groundcover_paging.vert
++    compatibility/groundcover_paging.frag
+     compatibility/water.vert
+     compatibility/water.frag
+     compatibility/objects.vert
+diff --git a/files/shaders/compatibility/groundcover_paging.frag b/files/shaders/compatibility/groundcover_paging.frag
+new file mode 100755
+index 00000000000..a275aa5f33b
+--- /dev/null
++++ b/files/shaders/compatibility/groundcover_paging.frag
+@@ -0,0 +1,101 @@
++#version 120
++
++#if @useUBO
++    #extension GL_ARB_uniform_buffer_object : require
++#endif
++
++#if @useGPUShader4
++    #extension GL_EXT_gpu_shader4: require
++#endif
++
++#define GROUNDCOVER
++
++#if @diffuseMap
++uniform sampler2D diffuseMap;
++varying vec2 diffuseMapUV;
++#endif
++
++#if @normalMap
++uniform sampler2D normalMap;
++varying vec2 normalMapUV;
++varying vec4 passTangent;
++#endif
++
++// Other shaders respect forcePPL, but legacy groundcover mods were designed to work with vertex lighting.
++// They may do not look as intended with per-pixel lighting, so ignore this setting for now.
++#define PER_PIXEL_LIGHTING @normalMap
++
++varying float euclideanDepth;
++varying float linearDepth;
++uniform vec2 screenRes;
++uniform float far;
++uniform float alphaRef;
++uniform float groundcoverFadeEnd;
++
++#if PER_PIXEL_LIGHTING
++varying vec3 passViewPos;
++#else
++centroid varying vec3 passLighting;
++centroid varying vec3 shadowDiffuseLighting;
++#endif
++
++varying vec3 passNormal;
++
++#include "shadows_fragment.glsl"
++#include "lib/light/lighting.glsl"
++#include "lib/material/alpha.glsl"
++#include "fog.glsl"
++
++void main()
++{
++    vec3 normal = normalize(passNormal);
++
++#if @normalMap
++    vec4 normalTex = texture2D(normalMap, normalMapUV);
++
++    vec3 normalizedNormal = normal;
++    vec3 normalizedTangent = normalize(passTangent.xyz);
++    vec3 binormal = cross(normalizedTangent, normalizedNormal) * passTangent.w;
++    mat3 tbnTranspose = mat3(normalizedTangent, binormal, normalizedNormal);
++
++    normal = normalize(tbnTranspose * (normalTex.xyz * 2.0 - 1.0));
++#endif
++    vec3 viewNormal = normalize(gl_NormalMatrix * normal);
++
++#if @diffuseMap
++    gl_FragData[0] = texture2D(diffuseMap, diffuseMapUV);
++#else
++    gl_FragData[0] = vec4(1.0);
++#endif
++
++    if(gl_FrontMaterial.emission.xyz == vec3(0.0))
++    if (euclideanDepth > groundcoverFadeEnd * 0.9)
++        gl_FragData[0].a *= 1.0-smoothstep(groundcoverFadeEnd * 0.9, groundcoverFadeEnd, euclideanDepth);
++
++    gl_FragData[0].a = alphaTest(gl_FragData[0].a, alphaRef);
++
++    float shadowing = unshadowedLightRatio(linearDepth);
++
++    vec3 lighting;
++#if !PER_PIXEL_LIGHTING
++    lighting = passLighting + shadowDiffuseLighting * shadowing;
++#else
++    vec3 diffuseLight, ambientLight, specularLight;
++    doLighting(passViewPos, viewNormal, gl_FrontMaterial.shininess, shadowing, diffuseLight, ambientLight, specularLight);
++    lighting = diffuseLight + ambientLight;
++#endif
++
++    clampLightingResult(lighting);
++
++    gl_FragData[0].xyz *= lighting;
++    gl_FragData[0] = applyFogAtDist(gl_FragData[0], euclideanDepth, linearDepth, far);
++
++#if !@disableNormals
++    gl_FragData[1].xyz = viewNormal * 0.5 + 0.5;
++#endif
++
++    if(gl_FrontMaterial.emission.xyz != vec3(0.0))
++        gl_FragData[0].xyz += gl_FrontMaterial.emission.xyz;
++
++    applyShadowDebugOverlay();
++}
+diff --git a/files/shaders/compatibility/groundcover_paging.vert b/files/shaders/compatibility/groundcover_paging.vert
+new file mode 100755
+index 00000000000..09136e25dbf
+--- /dev/null
++++ b/files/shaders/compatibility/groundcover_paging.vert
+@@ -0,0 +1,156 @@
++#version 120
++
++#if @useUBO
++    #extension GL_ARB_uniform_buffer_object : require
++#endif
++
++#if @useGPUShader4
++    #extension GL_EXT_gpu_shader4: require
++#endif
++
++#include "lib/core/vertex.h.glsl"
++
++#define GROUNDCOVER
++
++attribute float originalHeight;
++
++#if @diffuseMap
++varying vec2 diffuseMapUV;
++#endif
++
++#if @normalMap
++varying vec2 normalMapUV;
++varying vec4 passTangent;
++#endif
++
++// Other shaders respect forcePPL, but legacy groundcover mods were designed to work with vertex lighting.
++// They may do not look as intended with per-pixel lighting, so ignore this setting for now.
++#define PER_PIXEL_LIGHTING @normalMap
++
++varying float euclideanDepth;
++varying float linearDepth;
++
++#if PER_PIXEL_LIGHTING
++varying vec3 passViewPos;
++#else
++centroid varying vec3 passLighting;
++centroid varying vec3 shadowDiffuseLighting;
++#endif
++
++varying vec3 passNormal;
++
++#include "shadows_vertex.glsl"
++#include "lib/light/lighting.glsl"
++#include "lib/view/depth.glsl"
++
++uniform float osg_SimulationTime;
++uniform mat4 osg_ViewMatrixInverse;
++uniform mat4 osg_ViewMatrix;
++uniform float windSpeed;
++uniform vec3 playerPos;
++//uniform vec2 stormDir;
++
++#if @groundcoverStompMode == 0
++#else
++    #define STOMP 1
++    #if @groundcoverStompMode == 2
++        #define STOMP_HEIGHT_SENSITIVE 1
++    #endif
++    #define STOMP_INTENSITY_LEVEL @groundcoverStompIntensity
++#endif
++
++highp vec4 grassDisplacement(vec3 viewPos, vec4 vertex)
++{
++    vec3 windData = vec3(windSpeed, 0.0, 0.0);
++    vec3 playerPos = playerPos;
++
++    highp float h = originalHeight;
++
++    highp vec4 worldPos = osg_ViewMatrixInverse * vec4(viewPos, 1.0);
++
++    highp vec2 WindVec = vec2(windData.x);
++
++    highp float v = length(WindVec);
++    highp vec2 displace = vec2(2.0 * WindVec + 0.1);
++
++    highp vec2 harmonics = vec2(0.0);
++
++    harmonics.xy += vec2((1.0 - 0.10*v) * sin(1.0*osg_SimulationTime +  worldPos.xy / 1100.0));
++    harmonics.xy += vec2((1.0 - 0.04*v) * cos(2.0*osg_SimulationTime +  worldPos.xy / 750.0));
++    harmonics.xy += vec2((1.0 + 0.14*v) * sin(3.0*osg_SimulationTime +  worldPos.xy / 500.0));
++    harmonics.xy += vec2((1.0 + 0.28*v) * sin(5.0*osg_SimulationTime  +  worldPos.xy / 200.0));
++
++    highp vec2 stomp = vec2(0.0);
++#if STOMP
++    highp float d = length(worldPos.xy - playerPos.xy);
++#if STOMP_INTENSITY_LEVEL == 0
++    // Gentle intensity
++    const float STOMP_RANGE = 50.0; // maximum distance from player that grass is affected by stomping
++    const float STOMP_DISTANCE = 20.0; // maximum distance stomping can move grass
++#elif STOMP_INTENSITY_LEVEL == 1
++    // Reduced intensity
++    const float STOMP_RANGE = 80.0;
++    const float STOMP_DISTANCE = 40.0;
++#elif STOMP_INTENSITY_LEVEL == 2
++    // MGE XE intensity
++    const float STOMP_RANGE = 150.0;
++    const float STOMP_DISTANCE = 60.0;
++#endif
++    if (d < STOMP_RANGE && d > 0.0)
++        stomp = (STOMP_DISTANCE / d - STOMP_DISTANCE / STOMP_RANGE) * (worldPos.xy - playerPos.xy);
++
++#ifdef STOMP_HEIGHT_SENSITIVE
++    stomp *= clamp((worldPos.z - playerPos.z) / h, 0.0, 1.0);
++#endif
++#endif
++
++    highp vec4 ret = vec4(0.0);
++    ret.xy += clamp(0.02 * h, 0.0, 1.0) * (harmonics * displace + stomp);
++/*
++    if(stormDir != vec2(0.0) && h > 0.0) {
++        ret.xy += h*stormDir;
++        ret.z -= length(ret.xy)/3.14;
++        ret.z -= sin(osg_SimulationTime * min(h, 150.0) / 10.0) * length(stormDir);
++     }
++*/
++    return vertex + ret;
++}
++
++void main(void)
++{
++    highp vec4 viewPos = (gl_ModelViewMatrix * gl_Vertex);
++    gl_ClipVertex = viewPos;
++    euclideanDepth = length(viewPos.xyz);
++
++    gl_Position = gl_ModelViewProjectionMatrix * grassDisplacement(viewPos.xyz, gl_Vertex);
++
++    linearDepth = getLinearDepth(gl_Position.z, viewPos.z);
++
++#if (!PER_PIXEL_LIGHTING || @shadows_enabled)
++    vec3 viewNormal = normalize((gl_NormalMatrix * gl_Normal).xyz);
++#endif
++
++#if @diffuseMap
++    diffuseMapUV = (gl_TextureMatrix[@diffuseMapUV] * gl_MultiTexCoord@diffuseMapUV).xy;
++#endif
++
++#if @normalMap
++    normalMapUV = (gl_TextureMatrix[@normalMapUV] * gl_MultiTexCoord@normalMapUV).xy;
++    passTangent = gl_MultiTexCoord7.xyzw;
++#endif
++
++    passNormal =  gl_Normal.xyz;
++#if PER_PIXEL_LIGHTING
++    passViewPos = viewPos.xyz;
++#else
++    vec3 diffuseLight, ambientLight, specularLight;
++    vec3 unusedShadowSpecular;
++    doLighting(viewPos.xyz, viewNormal, gl_FrontMaterial.shininess, diffuseLight, ambientLight, specularLight, shadowDiffuseLighting, unusedShadowSpecular);
++    passLighting = diffuseLight + ambientLight;
++    clampLightingResult(passLighting);
++#endif
++
++#if (@shadows_enabled)
++    setupShadowCoords(viewPos, viewNormal);
++#endif
++}

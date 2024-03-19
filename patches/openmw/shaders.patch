@@ -1,5 +1,5 @@
 From bbd346e0111367653cb952fec867a9dc38bbcf88 Mon Sep 17 00:00:00 2001
-From: Duron27 <duron27@gmail.com>
+From: sisah <jirielbunda@seznam.cz>
 Date: Thu, 15 Feb 2024 02:14:12 -0500
 Subject: [PATCH] shaders
 
@@ -335,3 +335,4 @@ index 6e22f6deb15..c8a1080574d 100644
 +{
 +    return projectionMatrix * pos;
 +}
+

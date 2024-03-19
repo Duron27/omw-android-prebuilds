@@ -1,6 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <PreferenceCategory android:title="Shadows (Huge Performance Decrease)">
+        <CheckBoxPreference
+            android:key="gs_shadows"
+            android:title="Enable Shadows"
+            android:defaultValue="false"
+            android:summary="Enable Shadows."/>
+
+        <CheckBoxPreference
+            android:key="gs_shadows_actor"
+            android:title="Enable Actor Shadows"
+            android:defaultValue="false"
+            android:summary="Enable Actor Shadows."/>
+
+        <CheckBoxPreference
+            android:key="gs_shadows_player"
+            android:title="Enable Player Shadows"
+            android:defaultValue="false"
+            android:summary="Enable Player Shadows."/>
+
+        <CheckBoxPreference
+            android:key="gs_shadows_terrain"
+            android:title="Enable Terrain Shadows"
+            android:defaultValue="false"
+            android:summary="Enable Terrain Shadows."/>
+
+        <CheckBoxPreference
+            android:key="gs_shadows_object"
+            android:title="Enable Object Shadows"
+            android:defaultValue="false"
+            android:summary="Enable Object Shadows."/>
+
+        <CheckBoxPreference
+            android:key="gs_shadows_indoor"
+            android:title="Enable Indoor Shadows"
+            android:defaultValue="false"
+            android:summary="Enable Indoor Shadows."/>
+
+        <EditTextPreference
+            android:key="gs_shadow_map_resolution"
+            android:title="Shadow Map Resolution"
+            android:dialogTitle="Shadow Map Resolution"
+            android:inputType="numberDecimal"
+            android:hint="512"
+            android:defaultValue="512"
+            android:summary="How large to make the shadow map(s). Higher values increase GPU load, but can produce better-looking results. Power-of-two values may turn out to be faster on some GPU/driver combinations." />
+
+        <EditTextPreference
+            android:key="gs_shadow_distance"
+            android:title="Shadow Rendering Distance"
+            android:dialogTitle="Shadow Rendering Distance"
+            android:inputType="numberDecimal"
+            android:hint="500"
+            android:defaultValue="3000"
+            android:summary="The distance from the camera at which shadows fade away completely. Set to 0 to make the distance infinite." />
+
+        <EditTextPreference
+            android:key="gs_shadow_maps"
+            android:title="Number of shadow maps"
+            android:dialogTitle="Number of shadow maps"
+            android:inputType="numberDecimal"
+            android:hint="4"
+            android:defaultValue="4"
+            android:summary="Higher number means smoother shadows." />
+
+        <EditTextPreference
+            android:key="gs_shadow_split_point"
+            android:title="Split Point Uniform Logarithmic Ratio"
+            android:dialogTitle="Split Point Uniform Logarithmic Ratio"
+            android:inputType="numberDecimal"
+            android:hint="0.5"
+            android:defaultValue="0.5"
+            android:summary="Indirectly controls where to split the shadow map(s). Values closer to 1.0 bring more detail closer to the camera (potentially excessively so), and values closer to 0.0 spread it more evenly across the whole viewing distance. 0.5 is recommended for most viewing distances by the original Parallel Split Shadow Maps paper." />
+
+        <EditTextPreference
+            android:key="gs_shadow_pcf"
+            android:title="Percentage Closer Filtering"
+            android:dialogTitle="Percentage Closer Filtering"
+            android:inputType="numberDecimal"
+            android:hint="1"
+            android:defaultValue="1"
+            android:summary="Smooth out shadows edges, 0 = disabled, 1 = 4 samples, 2 = 2*2*4 samples, 3 = 3*3*4 samples and so on." />
+
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="Terrain">
 
         <EditTextPreference
@@ -26,16 +110,7 @@
     </PreferenceCategory>
 
     <PreferenceCategory android:title="Graphics">
-<!--
-        <ListPreference
-            android:key="gs_antialiasing"
-            android:summary="%s"
-            android:title="Antialiasing"
-            android:dialogTitle="Antialiasing"
-            android:entries="@array/gs_antialiasing_entries"
-            android:entryValues="@array/gs_antialiasing_values"
-            android:defaultValue="0" />
--->
+
         <EditTextPreference
             android:key="gs_framerate_limit"
             android:title="Framerate Limit"
@@ -74,12 +149,6 @@
             android:title="Bump/Reflect Map Local Lighting"
             android:summary="Normally environment map reflections aren't affected by lighting, which makes environment-mapped (and thus bump-mapped objects) glow in the dark. Morrowind Code Patch includes an option to remedy that by doing environment-mapping before applying lighting, this is the equivalent of that option. Affected objects will use shaders."/>
 
-<!--
-        <CheckBoxPreference
-            android:key="gs_soft_particles"
-            android:title="Soft Particles"
-            android:summary="Enables soft particles for particle effects. This technique softens the intersection between individual particles and other opaque geometry by blending between them."/>
--->
     </PreferenceCategory>
 
     <PreferenceCategory android:title="Fog">
@@ -98,20 +167,6 @@
             android:key="gs_sky_blending"
             android:title="Sky Blending"
             android:summary="Whether to hide the clipping plane by blending with sky."/>
-
-    </PreferenceCategory>
-
-    <PreferenceCategory android:title="Post Processing">
-
-        <CheckBoxPreference
-            android:key="gs_soft_particles"
-            android:title="Soft Particles"
-            android:summary="Soften intersection of blended particle systems with opaque geometry."/>
-
-        <CheckBoxPreference
-            android:key="gs_transparent_postpass"
-            android:title="Transparent Postpass"
-            android:summary="Transparent depth postpass. Re-renders transparent objects with alpha-clipping forced with a fixed threshold."/>
 
     </PreferenceCategory>
 

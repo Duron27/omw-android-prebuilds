@@ -23,6 +23,7 @@ import com.libopenmw.openmw.R
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.annotation.SuppressLint
 import com.google.android.material.tabs.TabLayout
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -31,7 +32,7 @@ import file.GameInstaller
 import kotlinx.android.synthetic.main.activity_settings.*
 import android.view.MenuItem
 import java.io.File
-
+import android.util.Base64
 
 import android.content.SharedPreferences
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener
@@ -147,6 +148,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 }
 
+@SuppressLint("ValidFragment")
 class FragmentGameSettingsPage(val res: Int) : PreferenceFragment(), OnSharedPreferenceChangeListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

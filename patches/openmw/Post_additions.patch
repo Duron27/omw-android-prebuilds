@@ -1,0 +1,231 @@
+From d9166daa2f45493cf8d4fb9d1a1f29d373a5094d Mon Sep 17 00:00:00 2001
+From: sisah <jirielbunda@seznam.cz>
+Date: Tue, 12 Mar 2024 15:13:08 -0400
+Subject: [PATCH] postprocessing changes
+
+---
+ apps/openmw/mwrender/luminancecalculator.cpp     |  4 ++--
+ apps/openmw/mwrender/npcanimation.cpp            |  2 +-
+ apps/openmw/mwrender/postprocessor.cpp           |  6 +++---
+ apps/openmw/mwrender/renderingmanager.cpp        |  4 ++--
+ apps/openmw/mwrender/transparentpass.cpp         |  7 ++++---
+ components/fx/parse_constants.hpp                |  5 +++--
+ components/fx/pass.cpp                           |  2 +-
+ components/shader/shadervisitor.cpp              |  9 +++++++++
+ files/data/mygui/openmw_postprocessor_hud.layout |  2 +-
+ files/data/shaders/bloomlinear.omwfx             | 10 +++++-----
+ 10 files changed, 31 insertions(+), 20 deletions(-)
+
+diff --git a/apps/openmw/mwrender/luminancecalculator.cpp b/apps/openmw/mwrender/luminancecalculator.cpp
+index ae29b7fdcc8d..de4ac766f1bb 100644
+--- a/apps/openmw/mwrender/luminancecalculator.cpp
++++ b/apps/openmw/mwrender/luminancecalculator.cpp
+@@ -26,7 +26,7 @@ namespace MWRender
+             buffer.mipmappedSceneLuminanceTex = new osg::Texture2D;
+             buffer.mipmappedSceneLuminanceTex->setInternalFormat(GL_R16F);
+             buffer.mipmappedSceneLuminanceTex->setSourceFormat(GL_RED);
+-            buffer.mipmappedSceneLuminanceTex->setSourceType(GL_FLOAT);
++            buffer.mipmappedSceneLuminanceTex->setSourceType(GL_HALF_FLOAT);
+             buffer.mipmappedSceneLuminanceTex->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
+             buffer.mipmappedSceneLuminanceTex->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
+             buffer.mipmappedSceneLuminanceTex->setFilter(
+@@ -37,7 +37,7 @@ namespace MWRender
+             buffer.luminanceTex = new osg::Texture2D;
+             buffer.luminanceTex->setInternalFormat(GL_R16F);
+             buffer.luminanceTex->setSourceFormat(GL_RED);
+-            buffer.luminanceTex->setSourceType(GL_FLOAT);
++            buffer.luminanceTex->setSourceType(GL_HALF_FLOAT);
+             buffer.luminanceTex->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
+             buffer.luminanceTex->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
+             buffer.luminanceTex->setFilter(osg::Texture2D::MIN_FILTER, osg::Texture2D::NEAREST);
+diff --git a/apps/openmw/mwrender/npcanimation.cpp b/apps/openmw/mwrender/npcanimation.cpp
+index 01bdcec665ed..a34633fae79a 100644
+--- a/apps/openmw/mwrender/npcanimation.cpp
++++ b/apps/openmw/mwrender/npcanimation.cpp
+@@ -347,7 +347,7 @@ namespace MWRender
+             auto primaryFBO = postProcessor->getPrimaryFbo(frameId);
+             primaryFBO->apply(*state);
+
+-            postProcessor->getFbo(PostProcessor::FBO_OpaqueDepth, frameId)->apply(*state);
++//            postProcessor->getFbo(PostProcessor::FBO_OpaqueDepth, frameId)->apply(*state);
+
+             // depth accumulation pass
+             osg::ref_ptr<osg::StateSet> restore = bin->getStateSet();
+diff --git a/apps/openmw/mwrender/postprocessor.cpp b/apps/openmw/mwrender/postprocessor.cpp
+index 1aaeb460b7db..d3f4ed092c33 100644
+--- a/apps/openmw/mwrender/postprocessor.cpp
++++ b/apps/openmw/mwrender/postprocessor.cpp
+@@ -300,7 +300,7 @@ namespace MWRender
+         mCanvases[frameId]->setCalculateAvgLum(mHDR);
+
+         mCanvases[frameId]->setTextureScene(getTexture(Tex_Scene, frameId));
+-        mCanvases[frameId]->setTextureDepth(getTexture(Tex_OpaqueDepth, frameId));
++        mCanvases[frameId]->setTextureDepth(getTexture(Tex_Depth, frameId));
+         mCanvases[frameId]->setTextureDistortion(getTexture(Tex_Distortion, frameId));
+
+         mTransparentDepthPostPass->mFbo[frameId] = mFbos[frameId][FBO_Primary];
+@@ -407,12 +407,12 @@ namespace MWRender
+             mPrevPassLights = mPassLights;
+
+             mViewer->stopThreading();
+-
++/*
+             auto& shaderManager = MWBase::Environment::get().getResourceSystem()->getSceneManager()->getShaderManager();
+             auto defines = shaderManager.getGlobalDefines();
+             defines["disableNormals"] = mNormals ? "0" : "1";
+             shaderManager.setGlobalDefines(defines);
+-
++*/
+             mRendering.getLightRoot()->setCollectPPLights(mPassLights);
+             mStateUpdater->bindPointLights(mPassLights ? mRendering.getLightRoot()->getPPLightsBuffer() : nullptr);
+             mStateUpdater->reset();
+diff --git a/apps/openmw/mwrender/renderingmanager.cpp b/apps/openmw/mwrender/renderingmanager.cpp
+index fa90a7feae3d..fb1892211320 100644
+--- a/apps/openmw/mwrender/renderingmanager.cpp
++++ b/apps/openmw/mwrender/renderingmanager.cpp
+@@ -470,8 +470,8 @@ namespace MWRender
+
+         mPostProcessor = new PostProcessor(*this, viewer, mRootNode, resourceSystem->getVFS());
+         resourceSystem->getSceneManager()->setOpaqueDepthTex(
+-            mPostProcessor->getTexture(PostProcessor::Tex_OpaqueDepth, 0),
+-            mPostProcessor->getTexture(PostProcessor::Tex_OpaqueDepth, 1));
++            mPostProcessor->getTexture(PostProcessor::Tex_Depth, 0),
++            mPostProcessor->getTexture(PostProcessor::Tex_Depth, 1));
+         resourceSystem->getSceneManager()->setSoftParticles(Settings::shaders().mSoftParticles);
+         resourceSystem->getSceneManager()->setSupportsNormalsRT(mPostProcessor->getSupportsNormalsRT());
+         resourceSystem->getSceneManager()->setWeatherParticleOcclusion(Settings::shaders().mWeatherParticleOcclusion);
+diff --git a/apps/openmw/mwrender/transparentpass.cpp b/apps/openmw/mwrender/transparentpass.cpp
+index ce53b1c2193e..431c26c179c0 100644
+--- a/apps/openmw/mwrender/transparentpass.cpp
++++ b/apps/openmw/mwrender/transparentpass.cpp
+@@ -92,8 +92,9 @@ namespace MWRender
+         else
+         {
+             opaqueFbo->apply(state, osg::FrameBufferObject::DRAW_FRAMEBUFFER);
+-            ext->glBlitFramebuffer(0, 0, tex->getTextureWidth(), tex->getTextureHeight(), 0, 0, tex->getTextureWidth(),
+-                tex->getTextureHeight(), GL_DEPTH_BUFFER_BIT, GL_NEAREST);
++//            ext->glBlitFramebuffer(0, 0, tex->getTextureWidth(), tex->getTextureHeight(), 0, 0, tex->getTextureWidth(),
++//                tex->getTextureHeight(), GL_DEPTH_BUFFER_BIT, GL_NEAREST);
++            glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+         }
+
+         msaaFbo ? msaaFbo->apply(state, osg::FrameBufferObject::DRAW_FRAMEBUFFER)
+@@ -105,7 +106,7 @@ namespace MWRender
+         if (!mPostPass)
+             return;
+
+-        opaqueFbo->apply(state, osg::FrameBufferObject::DRAW_FRAMEBUFFER);
++//        opaqueFbo->apply(state, osg::FrameBufferObject::DRAW_FRAMEBUFFER);
+
+         // draw transparent post-pass to populate a postprocess friendly depth texture with alpha-clipped geometry
+
+diff --git a/components/fx/parse_constants.hpp b/components/fx/parse_constants.hpp
+index 9be54ed3a763..2057476f3e20 100644
+--- a/components/fx/parse_constants.hpp
++++ b/components/fx/parse_constants.hpp
+@@ -35,7 +35,7 @@ namespace fx
+             { "bgra", GL_BGRA },
+         } };
+
+-        constexpr std::array<std::pair<std::string_view, int>, 9> SourceType = { {
++        constexpr std::array<std::pair<std::string_view, int>, 10> SourceType = { {
+             { "byte", GL_BYTE },
+             { "unsigned_byte", GL_UNSIGNED_BYTE },
+             { "short", GL_SHORT },
+@@ -43,6 +43,7 @@ namespace fx
+             { "int", GL_INT },
+             { "unsigned_int", GL_UNSIGNED_INT },
+             { "unsigned_int_24_8", GL_UNSIGNED_INT_24_8 },
++            { "half_float", GL_HALF_FLOAT },
+             { "float", GL_FLOAT },
+             { "double", GL_DOUBLE },
+         } };
+@@ -129,4 +130,4 @@ namespace fx
+     }
+ }
+
+-#endif
+\ No newline at end of file
++#endif
+diff --git a/components/fx/pass.cpp b/components/fx/pass.cpp
+index cf50d20fe22d..20d090ef6cf5 100644
+--- a/components/fx/pass.cpp
++++ b/components/fx/pass.cpp
+@@ -89,7 +89,7 @@ namespace fx
+
+ uniform @builtinSampler omw_SamplerLastShader;
+ uniform @builtinSampler omw_SamplerLastPass;
+-uniform @builtinSampler omw_SamplerDepth;
++uniform highp @builtinSampler omw_SamplerDepth;
+ uniform @builtinSampler omw_SamplerNormals;
+ uniform @builtinSampler omw_SamplerDistortion;
+
+diff --git a/components/shader/shadervisitor.cpp b/components/shader/shadervisitor.cpp
+index 70464f571e62..1dc9a9314209 100644
+--- a/components/shader/shadervisitor.cpp
++++ b/components/shader/shadervisitor.cpp
+@@ -28,6 +28,8 @@
+ #include <components/settings/settings.hpp>
+ #include <components/stereo/stereomanager.hpp>
+ #include <components/vfs/manager.hpp>
++#include <components/settings/values.hpp>
++#include <components/sceneutil/depth.hpp>
+
+ #include "removedalphafunc.hpp"
+ #include "shadermanager.hpp"
+@@ -730,6 +732,13 @@ namespace Shader
+             updateRemovedState(*writableUserData, removedState);
+         }
+
++        if (reqs.mAlphaBlend && Settings::postProcessing().mTransparentPostpass && Settings::postProcessing().mEnabled)
++        {
++            osg::ref_ptr<osg::Depth> depth = new SceneUtil::AutoDepth;
++            depth->setWriteMask(false);
++            writableStateSet->setAttributeAndModes(depth, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
++        }
++
+         defineMap["softParticles"] = reqs.mSoftParticles ? "1" : "0";
+
+         Stereo::shaderStereoDefines(defineMap);
+diff --git a/files/data/shaders/bloomlinear.omwfx b/files/data/shaders/bloomlinear.omwfx
+index 3de7139f39af..4c583a9a8986 100644
+--- a/files/data/shaders/bloomlinear.omwfx
++++ b/files/data/shaders/bloomlinear.omwfx
+@@ -80,8 +80,8 @@ shared {
+         radius = max(radius, 0.1);
+         // hack: make the radius wider on the screen edges
+         // (makes things in the corner of the screen look less "wrong" with not-extremely-low FOVs)
+-        radius *= pow(texcoord.x*2.0-1.0, 2)+1.0;
+-        radius *= pow(texcoord.y*2.0-1.0, 2)+1.0;
++        radius *= pow(texcoord.x*2.0-1.0, 2.0)+1.0;
++        radius *= pow(texcoord.y*2.0-1.0, 2.0)+1.0;
+         return radius;
+     }
+     vec3 powv(vec3 a, float x)
+@@ -94,7 +94,7 @@ render_target RT_NoMipmap {
+     width_ratio = 0.25;
+     height_ratio = 0.25;
+     internal_format = rgb16f;
+-    source_type = float;
++    source_type = half_float;
+     source_format = rgb;
+     mipmaps = false;
+     min_filter = nearest;
+@@ -105,7 +105,7 @@ render_target RT_Horizontal {
+     width_ratio = 0.25;
+     height_ratio = 0.25;
+     internal_format = rgb16f;
+-    source_type = float;
++    source_type = half_float;
+     source_format = rgb;
+     mipmaps = false;
+     min_filter = nearest;
+@@ -116,7 +116,7 @@ render_target RT_Vertical {
+     width_ratio = 0.25;
+     height_ratio = 0.25;
+     internal_format = rgb16f;
+-    source_type = float;
++    source_type = half_float;
+     source_format = rgb;
+     mipmaps = false;
+     min_filter = linear;

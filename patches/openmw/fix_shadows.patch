@@ -1,0 +1,190 @@
+From 15a250eee7a6238d4a603339d1f64b565e33717d Mon Sep 17 00:00:00 2001
+From: sisah <jirielbunda@seznam.cz>
+Date: Tue, 12 Mar 2024 15:17:08 -0400
+Subject: [PATCH] shadows shaders
+
+---
+ components/sceneutil/mwshadowtechnique.cpp     |  4 ++--
+ .../compatibility/shadows_fragment.glsl        | 18 ++++++++++++++----
+ 2 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/components/sceneutil/mwshadowtechnique.cpp b/components/sceneutil/mwshadowtechnique.cpp
+index 06930ebe595..7ee6d636885 100644
+--- a/components/sceneutil/mwshadowtechnique.cpp
++++ b/components/sceneutil/mwshadowtechnique.cpp
+@@ -554,8 +554,8 @@ MWShadowTechnique::ShadowData::ShadowData(MWShadowTechnique::ViewDependentData*
+         _texture->setShadowTextureMode(osg::Texture2D::LUMINANCE);
+     }
+
+-    _texture->setFilter(osg::Texture2D::MIN_FILTER,osg::Texture2D::LINEAR);
+-    _texture->setFilter(osg::Texture2D::MAG_FILTER,osg::Texture2D::LINEAR);
++    _texture->setFilter(osg::Texture2D::MIN_FILTER,osg::Texture2D::NEAREST);
++    _texture->setFilter(osg::Texture2D::MAG_FILTER,osg::Texture2D::NEAREST);
+
+     // the shadow comparison should fail if object is outside the texture
+     _texture->setWrap(osg::Texture2D::WRAP_S,osg::Texture2D::CLAMP_TO_BORDER);
+diff --git a/files/settings-default.cfg b/files/settings-default.cfg
+index 1caf03c123f..5c7af8645fd 100644
+--- a/files/settings-default.cfg
++++ b/files/settings-default.cfg
+@@ -1054,6 +1054,9 @@ object shadows = false
+ # Allow shadows indoors. Due to limitations with Morrowind's data, only actors can cast shadows indoors, which some might feel is distracting.
+ enable indoor shadows = true
+
++# Smooth out shadows edges, 0 = disabled, 1 = 4 samples, 2 = 2*2*4 samples, 3 = 3*3*4 samples and so on.
++percentage closer filtering = 1
++
+ [Physics]
+ # Set the number of background threads used for physics.
+ # If no background threads are used, physics calculations are processed in the main thread
+diff --git a/apps/openmw/mwrender/renderingmanager.cpp b/apps/openmw/mwrender/renderingmanager.cpp
+index 224774d1029..8b79530dc36 100644
+--- a/apps/openmw/mwrender/renderingmanager.cpp
++++ b/apps/openmw/mwrender/renderingmanager.cpp
+@@ -416,6 +416,9 @@ namespace MWRender
+
+         globalDefines["reverseZ"] = reverseZ ? "1" : "0";
+
++        globalDefines["shadowMapSize"] = std::to_string(Settings::shadows().mShadowMapResolution);
++        globalDefines["PCFSamples"] = std::to_string(Settings::shadows().mPercentageCloserFiltering);
++
+         // It is unnecessary to stop/start the viewer as no frames are being rendered yet.
+         mResourceSystem->getSceneManager()->getShaderManager().setGlobalDefines(globalDefines);
+
+diff --git a/components/settings/categories/shadows.hpp b/components/settings/categories/shadows.hpp
+index 0da6f649c49..d10b5a5319d 100644
+--- a/components/settings/categories/shadows.hpp
++++ b/components/settings/categories/shadows.hpp
+@@ -43,6 +43,7 @@ namespace Settings
+         SettingValue<bool> mTerrainShadows{ mIndex, "Shadows", "terrain shadows" };
+         SettingValue<bool> mObjectShadows{ mIndex, "Shadows", "object shadows" };
+         SettingValue<bool> mEnableIndoorShadows{ mIndex, "Shadows", "enable indoor shadows" };
++        SettingValue<int> mPercentageCloserFiltering{ mIndex, "Shadows", "percentage closer filtering" };
+     };
+ }
+
+diff --git a/files/shaders/compatibility/shadowcasting.vert b/files/shaders/compatibility/shadowcasting.vert
+index c68bdd5c177..90882c09797 100644
+--- a/files/shaders/compatibility/shadowcasting.vert
++++ b/files/shaders/compatibility/shadowcasting.vert
+@@ -6,8 +6,8 @@ varying float alphaPassthrough;
+
+ uniform int colorMode;
+ uniform bool useTreeAnim;
+-uniform bool useDiffuseMapForShadowAlpha = true;
+-uniform bool alphaTestShadows = true;
++uniform bool useDiffuseMapForShadowAlpha;// = true;
++uniform bool alphaTestShadows;// = true;
+
+ void main(void)
+ {
+
+diff --git a/files/shaders/compatibility/shadows_fragment.glsl b/files/shaders/compatibility/shadows_fragment.glsl
+index 2945edff3dc..05162719710 100644
+--- a/files/shaders/compatibility/shadows_fragment.glsl
++++ b/files/shaders/compatibility/shadows_fragment.glsl
+@@ -4,7 +4,7 @@
+     uniform float maximumShadowMapDistance;
+     uniform float shadowFadeStart;
+     @foreach shadow_texture_unit_index @shadow_texture_unit_list
+-        uniform sampler2DShadow shadowTexture@shadow_texture_unit_index;
++        uniform sampler2D shadowTexture@shadow_texture_unit_index;
+         varying vec4 shadowSpaceCoords@shadow_texture_unit_index;
+
+ #if @perspectiveShadowMaps
+@@ -13,6 +13,70 @@
+     @endforeach
+ #endif // SHADOWS
+
++float lerp(float a, float b, float w)
++{
++    return a + w*(b-a);
++}
++
++float PCFBase(sampler2D shadowTexture, vec3 shadowCoordsProj)
++{
++    float Offset = 1.0/@shadowMapSize.0;
++    float res1, res2, res3, res4;
++    float bias = 0.999999;
++
++    vec2 offset = vec2(-0.5 * Offset, 0.5 * Offset);
++    float shadowDistance1 = texture2D(shadowTexture, shadowCoordsProj.xy + offset).r;
++    if (shadowDistance1 >= shadowCoordsProj.z || shadowDistance1 > bias)
++        res1 = 1.0;
++
++    offset = vec2(0.5 * Offset, 0.5 * Offset);
++    float shadowDistance2 = texture2D(shadowTexture, shadowCoordsProj.xy + offset).r;
++    if (shadowDistance2 >= shadowCoordsProj.z || shadowDistance2 > bias)
++        res2 = 1.0;
++
++    offset = vec2(-0.5 * Offset, -0.5 * Offset);
++    float shadowDistance3 = texture2D(shadowTexture, shadowCoordsProj.xy + offset).r;
++    if (shadowDistance3 >= shadowCoordsProj.z || shadowDistance3 > bias)
++        res3 = 1.0;
++
++    offset = vec2(0.5 * Offset, -0.5 * Offset);
++    float shadowDistance4 = texture2D(shadowTexture, shadowCoordsProj.xy + offset).r;
++    if (shadowDistance4 >= shadowCoordsProj.z || shadowDistance4 > bias)
++        res4 = 1.0;
++
++    float weightx = fract(@shadowMapSize.0 * (shadowCoordsProj.x + offset.x));
++    float weighty = fract(@shadowMapSize.0 * (shadowCoordsProj.y + offset.y));
++
++    return lerp( lerp(res3, res4, weightx), lerp(res1, res2, weightx), weighty );
++}
++
++float calcShadowing(sampler2D shadowTexture, vec4 LightSpacePos)
++{
++    vec3 shadowCoordsProj = LightSpacePos.xyz / LightSpacePos.w;
++    float Offset = 1.0/@shadowMapSize.0;
++    float shadowing = 1.0;
++
++#if @PCFSamples == 0
++    float shadowDistance = texture2D(shadowTexture, shadowCoordsProj.xy).r;
++    if (shadowDistance <= shadowCoordsProj.z && shadowDistance < 0.999999)
++        shadowing =  0.0;
++#else
++    float numPixels = @PCFSamples.0;
++    float mult = (numPixels -1.0) / 2.0;
++    shadowing = 0.0;
++
++    for (float y = -1.0 * mult; y <= mult; y+=1.0) {
++        for (float x = -1.0 * mult; x <= mult; x+=1.0) {
++            vec3 Offsets = vec3(float(x) * Offset, float(y) * Offset, 0.0001);
++                shadowing += PCFBase(shadowTexture, shadowCoordsProj + Offsets);
++        }
++    }
++    shadowing = shadowing / (numPixels * numPixels);
++#endif
++
++    return  shadowing;
++}
++
+ float unshadowedLightRatio(float distance)
+ {
+     float shadowing = 1.0;
+@@ -33,7 +97,7 @@ float unshadowedLightRatio(float distance)
+ #endif
+                 if (all(lessThan(shadowXYZ.xy, vec2(1.0, 1.0))) && all(greaterThan(shadowXYZ.xy, vec2(0.0, 0.0))))
+                 {
+-                    shadowing = min(shadow2DProj(shadowTexture@shadow_texture_unit_index, shadowSpaceCoords@shadow_texture_unit_index).r, shadowing);
++                    shadowing = calcShadowing(shadowTexture@shadow_texture_unit_index, shadowSpaceCoords@shadow_texture_unit_index);
+
+                     doneShadows = all(lessThan(shadowXYZ, vec3(0.95, 0.95, 1.0))) && all(greaterThan(shadowXYZ, vec3(0.05, 0.05, 0.0)));
+ #if @perspectiveShadowMaps
+@@ -44,7 +108,7 @@ float unshadowedLightRatio(float distance)
+         @endforeach
+     #else
+         @foreach shadow_texture_unit_index @shadow_texture_unit_list
+-            shadowing = min(shadow2DProj(shadowTexture@shadow_texture_unit_index, shadowSpaceCoords@shadow_texture_unit_index).r, shadowing);
++            shadowing = calcShadowing(shadowTexture@shadow_texture_unit_index, shadowSpaceCoords@shadow_texture_unit_index);
+         @endforeach
+     #endif
+ #if @limitShadowMapDistance
+@@ -84,4 +148,4 @@ void applyShadowDebugOverlay()
+         }
+     @endforeach
+ #endif // SHADOWS
+-}
+\ No newline at end of file
++}

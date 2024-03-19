@@ -2,14 +2,31 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
     <PreferenceCategory android:title="Engine">
+
         <ListPreference
             android:key="gs_groundcover_handling"
-            android:summary="%s \nEnable some special settings for groundcover mods (rendering distance, density). Also enable animation and disable colision for groundcover meshes. Require to load groundcover mods via Groundcovers tab in mod manager"
+            android:summary="%s \nEnable some special settings for groundcover mods (rendering distance, density). Also enable animation and disable collision for groundcover meshes. Require to load groundcover mods via Groundcovers tab in mod manager"
             android:title="Groundcover Handling"
             android:dialogTitle="Groundcover Handling"
             android:entries="@array/gs_groundcover_handling_entries"
             android:entryValues="@array/gs_groundcover_handling_values"
             android:defaultValue="0" />
+
+        <EditTextPreference
+            android:key="gs_groundcover_density"
+            android:title="Groundcover Density"
+            android:dialogTitle="Groundcover Density"
+            android:inputType="numberDecimal"
+            android:hint="10"
+            android:summary="Set Groundcover Density 0 to 100 (100 is Maximum)"/>
+
+        <EditTextPreference
+            android:key="gs_groundcover_distance"
+            android:title="Groundcover Rendering Distance"
+            android:dialogTitle="Groundcover Rendering Distance"
+            android:inputType="numberDecimal"
+            android:hint="3000"
+            android:summary="Set Groundcover Rendering Distance"/>
 
         <CheckBoxPreference
             android:key="gs_build_navmesh"

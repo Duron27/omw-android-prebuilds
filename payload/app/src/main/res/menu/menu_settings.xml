@@ -51,6 +51,12 @@
             android:title="@string/action_about"
             app:showAsAction="never"
             />
+            
+        <item
+            android:id="@+id/version_info"
+            android:title="@string/version_info"
+            app:showAsAction="never"
+            />
 
     </group>
 </menu>

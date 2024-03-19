@@ -100,6 +100,15 @@
             android:dialogTitle="@string/pref_customResolution"
             android:hint="640x480"
             />
+            
+        <EditTextPreference
+            android:key="gs_viewing_distance"
+            android:title="Maximum visible distance"
+            android:dialogTitle="Maximum visible distance"
+            android:inputType="numberDecimal"
+            android:hint="2048"
+            android:defaultValue="2048"
+            android:summary="Maximum visible distance. Caution: this setting can dramatically affect performance, see documentation for details." />
 
         <CheckBoxPreference
             android:key="pref_display_cutout_area"
@@ -123,15 +132,6 @@
             android:summary="%s"
         />
 
-        <ListPreference
-            android:key="pref_shadersDir_v2"
-            android:title="@string/pref_shadersDir"
-            android:dialogTitle="@string/pref_shadersDir"
-            android:entries="@array/pref_shadersDir_entries"
-            android:entryValues="@array/pref_shadersDir_values"
-            android:defaultValue="@string/pref_shadersDir_default"
-            android:summary="%s"
-        />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/pref_advanced">
