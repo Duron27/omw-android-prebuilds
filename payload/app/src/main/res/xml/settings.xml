@@ -27,6 +27,7 @@
         <Preference
             android:title="@string/mods"
             android:key="pref_mods"
+            android:summary="Copy each mod folder into the morrowind folder and select in the directories tab. The plugin can then be enabled in the plugins tab."
             />
     </PreferenceCategory>
 
