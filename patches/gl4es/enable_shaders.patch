@@ -1,0 +1,25 @@
+From 5dea5475bcd013cdff5b6ed197ba5225d444471d Mon Sep 17 00:00:00 2001
+From: sisah <jirielbunda@seznam.cz>
+Date: Sat, 11 Mar 2023 12:33:52 -0500
+Subject: [PATCH] force enable GL_EXT_shader_non_constant_global_initializers
+
+---
+ src/gl/shaderconv.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/gl/shaderconv.c b/src/gl/shaderconv.c
+index c65161694..3d213463e 100644
+--- a/src/gl/shaderconv.c
++++ b/src/gl/shaderconv.c
+@@ -552,6 +552,11 @@ char* ConvertShader(const char* pEntry, int isVertex, shaderconv_need_t *need)
+       Tmp = gl4es_inplace_insert(gl4es_getline(Tmp, headline-1), GLESFakeFragDepth, Tmp, &tmpsize);
+     headline++;
+   }
++
++  const char* GLESUseShaderNonConstantGlobalInitialzers = "#extension GL_EXT_shader_non_constant_global_initializers : enable\n";
++  Tmp = gl4es_inplace_insert(gl4es_getline(Tmp, 1), GLESUseShaderNonConstantGlobalInitialzers, Tmp, &tmpsize);
++  ++headline;
++
+   int derivatives = (strstr(pBuffer, "dFdx(") || strstr(pBuffer, "dFdy(") || strstr(pBuffer, "fwidth("))?1:0;
+   const char* GLESUseDerivative = "#extension GL_OES_standard_derivatives : enable\n";
+   // complete fake value... A better thing should be use....
