@@ -12,13 +12,13 @@
             android:entryValues="@array/gs_groundcover_handling_values"
             android:defaultValue="0" />
 
-        <EditTextPreference
+       <EditTextPreference
             android:key="gs_groundcover_density"
             android:title="Groundcover Density"
             android:dialogTitle="Groundcover Density"
             android:inputType="numberDecimal"
-            android:hint="10"
-            android:summary="Set Groundcover Density 0 to 100 (100 is Maximum)"/>
+            android:hint="0.2"
+            android:summary="Set Groundcover Density 0 to 1"/>
 
         <EditTextPreference
             android:key="gs_groundcover_distance"
