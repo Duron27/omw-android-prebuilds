@@ -1,27 +1,5 @@
-From 25fc33957172327ff2a2cb1a0b5e062e839f4d6a Mon Sep 17 00:00:00 2001
-From: sisah <jirielbunda@seznam.cz>
-Date: Mon, 11 Mar 2024 04:55:37 -0400
-Subject: [PATCH] grass paging
-
----
- apps/openmw/mwrender/objectpaging.cpp         | 172 +++++++++++++++---
- apps/openmw/mwrender/objectpaging.hpp         |   6 +-
- apps/openmw/mwrender/renderingmanager.cpp     |  71 +++++++-
- apps/openmw/mwrender/renderingmanager.hpp     |   4 +
- apps/openmw/mwworld/worldimp.cpp              |   2 +-
- .../settings/categories/groundcover.hpp       |   5 +-
- components/terrain/quadtreeworld.cpp          |  12 ++
- components/terrain/quadtreeworld.hpp          |   2 +
- files/settings-default.cfg                    |  17 +-
- files/shaders/CMakeLists.txt                  |   2 +
- .../compatibility/groundcover_paging.frag     | 101 ++++++++++
- .../compatibility/groundcover_paging.vert     | 156 ++++++++++++++++
- 12 files changed, 515 insertions(+), 35 deletions(-)
- create mode 100755 files/shaders/compatibility/groundcover_paging.frag
- create mode 100755 files/shaders/compatibility/groundcover_paging.vert
-
 diff --git a/apps/openmw/mwrender/objectpaging.cpp b/apps/openmw/mwrender/objectpaging.cpp
-index f1bccc13c97..bbbc2ea4f2d 100644
+index f1bccc13c97..ba3d4550c25 100644
 --- a/apps/openmw/mwrender/objectpaging.cpp
 +++ b/apps/openmw/mwrender/objectpaging.cpp
 @@ -8,6 +8,8 @@
@@ -108,7 +86,7 @@ index f1bccc13c97..bbbc2ea4f2d 100644
 +        if (mGroundcover)
 +        {
 +            mMergeFactor = Settings::groundcover().mMergeFactor;
-+            mGroundcoverDensity = Settings::groundcover().mDensity/100.f;
++            mGroundcoverDensity = Settings::groundcover().mDensity;
 +            mMinSize = 0.01;
 +        }
      }
@@ -347,7 +325,7 @@ index 6085887b9c6..bd3173554ec 100644
          float mMergeFactor;
          float mMinSize;
 diff --git a/apps/openmw/mwrender/renderingmanager.cpp b/apps/openmw/mwrender/renderingmanager.cpp
-index 2cfcd2fd37f..afcd6d2b6dc 100644
+index 2cfcd2fd37f..fa90a7feae3 100644
 --- a/apps/openmw/mwrender/renderingmanager.cpp
 +++ b/apps/openmw/mwrender/renderingmanager.cpp
 @@ -161,6 +161,7 @@ namespace MWRender
@@ -464,7 +442,7 @@ index 2cfcd2fd37f..afcd6d2b6dc 100644
          {
              const int compMapResolution = Settings::terrain().mCompositeMapResolution;
              const int compMapPower = Settings::terrain().mCompositeMapLevel;
-@@ -1336,20 +1367,47 @@ namespace MWRender
+@@ -1336,11 +1367,11 @@ namespace MWRender
              if (Settings::terrain().mObjectPaging)
              {
                  newChunkMgr.mObjectPaging
@@ -477,11 +455,8 @@ index 2cfcd2fd37f..afcd6d2b6dc 100644
 +            if (!groundcoverPaging && groundcover)
              {
                  const float groundcoverDistance = Settings::groundcover().mRenderingDistance;
--                const float density = Settings::groundcover().mDensity;
-+                const float density = Settings::groundcover().mDensity/100.f;
- 
-                 newChunkMgr.mGroundcover = std::make_unique<Groundcover>(
-                     mResourceSystem->getSceneManager(), density, groundcoverDistance, mGroundCoverStore);
+                 const float density = Settings::groundcover().mDensity;
+@@ -1350,6 +1381,33 @@ namespace MWRender
                  quadTreeWorld->addChunkManager(newChunkMgr.mGroundcover.get());
                  mResourceSystem->addResourceManager(newChunkMgr.mGroundcover.get());
              }
@@ -615,10 +590,10 @@ index fa800d26551..de7d4ff7619 100644
  
          void accept(osg::NodeVisitor& nv);
 diff --git a/files/settings-default.cfg b/files/settings-default.cfg
-index 4a90a46cc5c..ee1590a1328 100644
+index 4a90a46cc5c..2c306bf1aec 100644
 --- a/files/settings-default.cfg
 +++ b/files/settings-default.cfg
-@@ -1141,12 +1141,21 @@ write nif debug log = false
+@@ -1141,9 +1141,18 @@ write nif debug log = false
  
  [Groundcover]
  
@@ -626,9 +601,6 @@ index 4a90a46cc5c..ee1590a1328 100644
 +# enable separate groundcover handling (instancing)
  enabled = false
  
--# A groundcover density (0.0 <= value <= 1.0)
--# 1.0 means 100% density
--density = 1.0
 +# enable separate groundcover handling (paging)
 +paging = false
 +
@@ -638,12 +610,9 @@ index 4a90a46cc5c..ee1590a1328 100644
 +# Affects the likelyhood of more complex objects to get paged. Higher values improve visual fidelity at the cost of performance and RAM. (paging only)
 +merge factor = 2000;
 +
-+# A groundcover density (0 <= value <= 100)
-+# 100 means 100% density
-+density = 100
- 
- # A maximum distance in game units on which groundcover is rendered.
- rendering distance = 6144.0
+ # A groundcover density (0.0 <= value <= 1.0)
+ # 1.0 means 100% density
+ density = 1.0
 diff --git a/files/shaders/CMakeLists.txt b/files/shaders/CMakeLists.txt
 index ca0c264ade7..1263d7d5178 100644
 --- a/files/shaders/CMakeLists.txt
