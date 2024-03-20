@@ -274,6 +274,7 @@ RUN wget -c https://github.com/bulletphysics/bullet3/archive/${BULLET_VERSION}.t
 
 # Setup GL4ES_VERSION
 RUN wget -c https://github.com/Duron27/gl4es/archive/refs/tags/${GL4ES_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/
+RUN patch -d ${HOME}/src/gl4es-${GL4ES_VERSION} -p1 -t -N < /root/patches/gl4es/enable_shaders.patch
 RUN cd ${HOME}/src/gl4es-${GL4ES_VERSION} && \
     ndk-build ${NDK_BUILD_FLAGS} && \
     cp libs/${ABI}/libGL.so /root/prefix/lib/ && cp -r ${HOME}/src/gl4es-${GL4ES_VERSION}/include /root/prefix/include/gl4es/ && cp -r ${HOME}/src/gl4es-${GL4ES_VERSION}/include /root/prefix/
