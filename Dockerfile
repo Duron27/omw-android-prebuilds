@@ -73,9 +73,9 @@ ENV clang=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang
 ENV clang++=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++
 
 # Global C, CXX and LDFLAGS
-ENV CFLAGS="-fPIC -O3"
-ENV CXXFLAGS="-fPIC -O3 -frtti -fexceptions"
-ENV LDFLAGS="-fPIC -Wl,--undefined-version -fuse-ld=lld"
+ENV CFLAGS="-fPIC -O3 -flto"
+ENV CXXFLAGS="-fPIC -O3 -frtti -fexceptions -flto"
+ENV LDFLAGS="-fPIC -Wl,--undefined-version -flto -fuse-ld=lld"
 
 ENV COMMON_CMAKE_ARGS \
   "-DCMAKE_TOOLCHAIN_FILE=/root/Android/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake" \
