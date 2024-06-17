@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:labs
-FROM fedora:39
+FROM olevolbracht/androidbuildbaseimages:ndk28java17
 
 #Set build type : release, debug
 ENV BUILD_TYPE=release
@@ -10,98 +10,24 @@ ENV LIBPNG_VERSION=1.6.42
 ENV FREETYPE2_VERSION=2.13.2
 ENV OPENAL_VERSION=1.23.1
 ENV BOOST_VERSION=1.83.0
-ENV LIBICU_VERSION=70-1
 ENV FFMPEG_VERSION=6.1
 ENV SDL2_VERSION=2.0.22
 ENV BULLET_VERSION=3.25
 ENV ZLIB_VERSION=1.3.1
 ENV LIBXML2_VERSION=2.12.5
 ENV MYGUI_VERSION=3.4.3
-ENV GL4ES_VERSION=1.1.4
+ENV GL4ES_VERSION=1.1.5
 ENV COLLADA_DOM_VERSION=2.5.0
 ENV OSG_VERSION=69cfecebfb6dc703b42e8de39eed750a84a87489
 ENV LZ4_VERSION=1.9.3
 ENV LUAJIT_VERSION=2.1.ROLLING
-ENV OPENMW_VERSION=c1b9beb7632a324e7fb7569b288678a4e5f26549
-ENV NDK_VERSION=26.1.10909125
-ENV SDK_CMDLINE_TOOLS=10406996_latest
-ENV PLATFORM_TOOLS_VERSION=29.0.0
-ENV JAVA_VERSION=17
+ENV OPENMW_VERSION=05815b39527e41f820f8d24895e4fa1e82bb753c
 
-# Version of Release
-ENV APP_VERSION=0.49
-
-RUN dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
-    && dnf install -y xz p7zip bzip2 libstdc++-devel glibc-devel unzip which wget redhat-lsb-core python-devel doxygen nano gcc-c++ git java-11-openjdk java-${JAVA_VERSION}-openjdk\
-    cmake
-
-ENV JAVA_HOME /usr/lib/jvm/java-17-openjdk-17.0.9.0.9-3.fc39.x86_64
-ENV ANDROID_SDK_ROOT=/root/Android/cmdline-tools/latest/bin
-ENV ANDROID_HOME=/root/Android
-RUN mkdir -p ${HOME}/prefix
-RUN mkdir -p ${HOME}/src
-
-# Set the installation Dir
-ENV PREFIX=/root/prefix
-RUN cd ${HOME}/src && wget https://github.com/unicode-org/icu/archive/refs/tags/release-${LIBICU_VERSION}.zip && unzip -o ${HOME}/src/release-${LIBICU_VERSION}.zip && rm -rf release-${LIBICU_VERSION}.zip
-RUN wget https://dl.google.com/android/repository/commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip && unzip commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip && mkdir -p ${HOME}/Android/cmdline-tools/ && mv cmdline-tools/ ${HOME}/Android/cmdline-tools/latest && rm commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip
-RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
-RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "ndk;${NDK_VERSION}" "platforms;android-28" "platform-tools" "build-tools;29.0.2" "emulator" --channel=0
-RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
-#RUN wget https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip
-
-COPY --chmod=0755 patches /root/patches
-COPY --chmod=0755 payload /root/payload
-
-#Setup ICU for the Host
-RUN mkdir -p ${HOME}/src/icu-host-build && cd $_ && ${HOME}/src/icu-release-70-1/icu4c/source/configure --disable-tests --disable-samples --disable-icuio --disable-extras CC="gcc" CXX="g++" && make -j $(nproc)
-ENV PATH=$PATH:/root/Android/cmdline-tools/latest/bin/:/root/Android/ndk/${NDK_VERSION}/:/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64:/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin:/root/prefix/include:/root/prefix/lib:/root/prefix/
-
-# NDK Settings
-ENV API=21
-ENV ABI=arm64-v8a
-ENV ARCH=aarch64
-ENV NDK_TRIPLET=${ARCH}-linux-android
-ENV TOOLCHAIN=/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64
-ENV AR=${TOOLCHAIN}/bin/llvm-ar
-ENV LD=${TOOLCHAIN}/bin/ld
-ENV RANLIB=${TOOLCHAIN}/bin/llvm-ranlib
-ENV STRIP=${TOOLCHAIN}/bin/llvm-strip
-ENV CC=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang
-ENV CXX=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++
-ENV clang=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang
-ENV clang++=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++
-
-# Global C, CXX and LDFLAGS
-ENV CFLAGS="-fPIC -O3 -flto"
-ENV CXXFLAGS="-fPIC -O3 -frtti -fexceptions -flto"
-ENV LDFLAGS="-fPIC -Wl,--undefined-version -flto -fuse-ld=lld"
-
-ENV COMMON_CMAKE_ARGS \
-  "-DCMAKE_TOOLCHAIN_FILE=/root/Android/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake" \
-  "-DANDROID_ABI=$ABI" \
-  "-DANDROID_PLATFORM=android-${API}" \
-  "-DANDROID_STL=c++_shared" \
-  "-DANDROID_CPP_FEATURES=" \
-  "-DANDROID_ALLOW_UNDEFINED_VERSION_SCRIPT_SYMBOLS=ON" \
-  "-DCMAKE_BUILD_TYPE=$BUILD_TYPE" \
-  "-DCMAKE_C_FLAGS=-I${PREFIX}" \
-  "-DCMAKE_DEBUG_POSTFIX=" \
-  "-DCMAKE_INSTALL_PREFIX=${PREFIX}" \
-  "-DCMAKE_FIND_ROOT_PATH=${PREFIX}" \
-  "-DCMAKE_CXX_COMPILER=${NDK_TRIPLET}${API}-clang++" \
-  "-DCMAKE_CC_COMPILER=${NDK_TRIPLET}${API}-clang" \
-  "-DHAVE_LD_VERSION_SCRIPT=OFF"
-
-ENV COMMON_AUTOCONF_FLAGS="--enable-static --disable-shared --prefix=${PREFIX} --host=${NDK_TRIPLET}${API}"
-
-ENV NDK_BUILD_FLAGS \
-    "NDK_PROJECT_PATH=." \
-    "APP_BUILD_SCRIPT=./Android.mk" \
-    "APP_PLATFORM=${API}" \
-    "APP_ABI=${ABI}"
+RUN mkdir -p ${HOME}/{zips,src}
+COPY --chmod=0755 patches ${HOME}/patches
 
 # Setup LIBICU
+RUN mkdir -p ${HOME}/prefix/icu
 RUN mkdir -p ${HOME}/src/icu-${LIBICU_VERSION} && cd $_ && \
     ${HOME}/src/icu-release-${LIBICU_VERSION}/icu4c/source/configure \
         ${COMMON_AUTOCONF_FLAGS} \
@@ -109,48 +35,72 @@ RUN mkdir -p ${HOME}/src/icu-${LIBICU_VERSION} && cd $_ && \
         --disable-samples \
         --disable-icuio \
         --disable-extras \
-        --prefix=${PREFIX} \
-        --with-cross-build=/root/src/icu-host-build && \
+        --prefix=${HOME}/prefix/icu \
+        --with-cross-build=${HOME}/src/icu-host-build && \
     make -j $(nproc) check_PROGRAMS= bin_PROGRAMS= && \
     make install check_PROGRAMS= bin_PROGRAMS=
+RUN cd ${HOME}/prefix/icu && zip -r ${HOME}/zips/LibIcu.zip ./*
+RUN cp -rl ${HOME}/prefix/icu/* ${HOME}/prefix/
 
 # Setup Bzip2
-RUN cd $HOME/src/ && git clone https://github.com/libarchive/bzip2 && cd bzip2 && cmake . $COMMON_CMAKE_ARGS && make -j $(nproc) && make install
+RUN mkdir -p ${HOME}/prefix/Bzip2
+RUN cd $HOME/src/ && \
+    git clone https://github.com/libarchive/bzip2 && cd bzip2 && \
+    cmake . $COMMON_CMAKE_ARGS \
+        -DCMAKE_INSTALL_PREFIX=${HOME}/prefix/Bzip2 && \
+    make -j $(nproc) && make install
+RUN cd ${HOME}/prefix/Bzip2 && zip -r ${HOME}/zips/Bzip2.zip ./*
+RUN cp -rl ${HOME}/prefix/Bzip2/* ${HOME}/prefix/
 
 # Setup ZLIB
+RUN mkdir -p ${HOME}/prefix/zlib
 RUN wget -c https://github.com/madler/zlib/archive/refs/tags/v${ZLIB_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     mkdir -p ${HOME}/src/zlib-${ZLIB_VERSION}/build && cd $_ && \
     cmake ${HOME}/src/zlib-${ZLIB_VERSION} \
         ${COMMON_CMAKE_ARGS} \
-        -DCMAKE_CXX_FLAGS="${CXXFLAGS}" && \
+        -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+        -DCMAKE_INSTALL_PREFIX=${HOME}/prefix/zlib && \
     make -j $(nproc) && make install
+RUN cd ${HOME}/prefix/zlib && zip -r ${HOME}/zips/Zlib.zip ./*
+RUN cp -rl ${HOME}/prefix/zlib/* ${HOME}/prefix/
 
 # Setup LIBJPEG_TURBO
+RUN mkdir -p ${HOME}/prefix/libjpeg
 RUN wget -c https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/${LIBJPEG_TURBO_VERSION}/libjpeg-turbo-${LIBJPEG_TURBO_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     mkdir -p ${HOME}/src/libjpeg-turbo-${LIBJPEG_TURBO_VERSION}/build && cd $_ && \
     cmake ${HOME}/src/libjpeg-turbo-${LIBJPEG_TURBO_VERSION} \
         ${COMMON_CMAKE_ARGS} \
         -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+        -DCMAKE_INSTALL_PREFIX=${HOME}/prefix/libjpeg \
         -DENABLE_SHARED=false && \
     make -j $(nproc) && make install
+RUN cd ${HOME}/prefix/libjpeg && zip -r ${HOME}/zips/Libjpeg.zip ./*
+RUN cp -rl ${HOME}/prefix/libjpeg/* ${HOME}/prefix/
 
 # Setup LIBPNG
+RUN mkdir -p ${HOME}/prefix/libpng
 RUN wget -c http://prdownloads.sourceforge.net/libpng/libpng-${LIBPNG_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     mkdir -p ${HOME}/src/libpng-${LIBPNG_VERSION}/build && cd $_ && \
         ${HOME}/src/libpng-${LIBPNG_VERSION}/configure \
-        ${COMMON_AUTOCONF_FLAGS} && \
+        ${COMMON_AUTOCONF_FLAGS} --prefix=${HOME}/prefix/libpng && \
     make -j $(nproc) check_PROGRAMS= bin_PROGRAMS= && \
     make install check_PROGRAMS= bin_PROGRAMS=
+RUN cd ${HOME}/prefix/libpng && zip -r ${HOME}/zips/Libpng.zip ./*
+RUN cp -rl ${HOME}/prefix/libpng/* ${HOME}/prefix/
 
 # Setup FREETYPE2
+RUN mkdir -p ${HOME}/prefix/freetype2
 RUN wget -c https://download.savannah.gnu.org/releases/freetype/freetype-${FREETYPE2_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     mkdir -p ${HOME}/src/freetype-${FREETYPE2_VERSION}/build && cd $_ && \
         ${HOME}/src/freetype-${FREETYPE2_VERSION}/configure \
-        ${COMMON_AUTOCONF_FLAGS} \
+        ${COMMON_AUTOCONF_FLAGS} --prefix=${HOME}/prefix/freetype2 \
         --with-png=no && \
     make -j $(nproc) && make install
+RUN cd ${HOME}/prefix/freetype2 && zip -r ${HOME}/zips/Freetype2.zip ./*
+RUN cp -rl ${HOME}/prefix/freetype2/* ${HOME}/prefix/
 
 # Setup LIBXML
+RUN mkdir -p ${HOME}/prefix/libxml
 RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v${LIBXML2_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     mkdir -p ${HOME}/src/libxml2-${LIBXML2_VERSION}/build && cd $_ && \
     cmake ${HOME}/src/libxml2-${LIBXML2_VERSION} \
@@ -164,10 +114,14 @@ RUN wget -c https://github.com/GNOME/libxml2/archive/refs/tags/v${LIBXML2_VERSIO
         -DLIBXML2_WITH_PYTHON=OFF \
         -DLIBXML2_WITH_TESTS=OFF \
         -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+        -DCMAKE_INSTALL_PREFIX=${HOME}/prefix/libxml \
         -DLIBXML2_WITH_ZLIB=ON && \
     make -j $(nproc) && make install
+RUN cd ${HOME}/prefix/libxml && zip -r ${HOME}/zips/Libxml.zip ./*
+RUN cp -rl ${HOME}/prefix/libxml/* ${HOME}/prefix/
 
 # Setup OPENAL
+RUN mkdir -p ${HOME}/prefix/openal
 RUN wget -c https://github.com/kcat/openal-soft/archive/${OPENAL_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     mkdir -p ${HOME}/src/openal-soft-${OPENAL_VERSION}/build && cd $_ && \
     cmake ${HOME}/src/openal-soft-${OPENAL_VERSION} \
@@ -178,17 +132,21 @@ RUN wget -c https://github.com/kcat/openal-soft/archive/${OPENAL_VERSION}.tar.gz
         -DALSOFT_NO_CONFIG_UTIL=ON \
         -DALSOFT_BACKEND_OPENSL=ON \
         -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+        -DCMAKE_INSTALL_PREFIX=${HOME}/prefix/openal \
         -DALSOFT_BACKEND_WAVE=OFF && \
     make -j $(nproc) && make install
+RUN cd ${HOME}/prefix/openal && zip -r ${HOME}/zips/Openal.zip ./*
+RUN cp -rl ${HOME}/prefix/openal/* ${HOME}/prefix/
 
 # Setup BOOST
+RUN mkdir -p ${HOME}/prefix/boost
 ENV JAM=/root/src/boost-${BOOST_VERSION}/user-config.jam
 RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VERSION}/boost-${BOOST_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
         cd ${HOME}/src/boost-${BOOST_VERSION} && \
         echo "using clang : ${ARCH} : ${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++ ;" >> ${JAM} && \
     ./bootstrap.sh \
         --with-toolset=clang \
-        prefix=${PREFIX} && \
+        prefix=${HOME}/prefix/boost && \
     ./b2 \
         -j4 \
         --with-filesystem \
@@ -196,7 +154,7 @@ RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VE
         --with-system \
         --with-iostreams \
         --with-regex \
-        --prefix=${PREFIX} \
+        --prefix=${HOME}/prefix/boost \
         --ignore-site-config \
         --user-config=${JAM} \
         toolset=clang \
@@ -213,9 +171,12 @@ RUN wget -c https://github.com/boostorg/boost/releases/download/boost-${BOOST_VE
         link=static \
         runtime-link=static \
         install
-RUN $RANLIB ${PREFIX}/lib/*.a
+RUN $RANLIB ${HOME}/prefix/boost/lib/*.a
+RUN cd ${HOME}/prefix/boost && zip -r ${HOME}/zips/Boost.zip ./*
+RUN cp -rl ${HOME}/prefix/boost/* ${HOME}/prefix/
 
 # Setup FFMPEG_VERSION
+RUN mkdir -p ${HOME}/prefix/ffmpeg
 RUN wget -c http://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 -O - | tar -xjf - -C ${HOME}/src/ && \
     mkdir -p ${HOME}/src/ffmpeg-${FFMPEG_VERSION} && cd $_ && \
     ${HOME}/src/ffmpeg-${FFMPEG_VERSION}/configure \
@@ -227,7 +188,7 @@ RUN wget -c http://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 -O - | t
         --cc=${NDK_TRIPLET}${API}-clang \
         --arch=arm64 \
         --cpu=armv8-a \
-        --prefix=${PREFIX} \
+        --prefix=${HOME}/prefix/ffmpeg \
         --enable-version3 \
         --enable-pic \
         --disable-everything \
@@ -250,19 +211,26 @@ RUN wget -c http://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 -O - | t
         --enable-demuxer=matroska \
         --enable-demuxer=ogg && \
     make -j $(nproc) && make install
+RUN cd ${HOME}/prefix/ffmpeg && zip -r ${HOME}/zips/FFmpeg.zip ./*
+RUN cp -rl ${HOME}/prefix/ffmpeg/* ${HOME}/prefix/
 
 # Setup SDL2_VERSION
-RUN wget -c https://www.libsdl.org/release/SDL2-${SDL2_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/ && \
+RUN mkdir -p ${HOME}/prefix/SDL2/lib
+RUN wget -c https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-${SDL2_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/ && \
     cd ${HOME}/src/SDL2-${SDL2_VERSION} && \
     ndk-build ${NDK_BUILD_FLAGS}
-RUN cp ${HOME}/src/SDL2-${SDL2_VERSION}/libs/${ABI}/libSDL2.so /root/prefix/lib/
-RUN cp -rf ${HOME}/src/SDL2-${SDL2_VERSION}/include /root/prefix/
+RUN cp ${HOME}/src/SDL2-${SDL2_VERSION}/libs/${ABI}/libSDL2.so ${HOME}/prefix/SDL2/lib/
+RUN cp -rf ${HOME}/src/SDL2-${SDL2_VERSION}/include ${HOME}/prefix/SDL2/
+RUN cd ${HOME}/prefix/SDL2 && zip -r ${HOME}/zips/SDL2.zip ./*
+RUN cp -rl ${HOME}/prefix/SDL2/* ${HOME}/prefix/
 
 # Setup BULLET
+RUN mkdir -p ${HOME}/prefix/bullet
 RUN wget -c https://github.com/bulletphysics/bullet3/archive/${BULLET_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     mkdir -p ${HOME}/src/bullet3-${BULLET_VERSION}/build && cd $_ && \
     cmake ${HOME}/src/bullet3-${BULLET_VERSION} \
         ${COMMON_CMAKE_ARGS} \
+        -DCMAKE_INSTALL_PREFIX=${HOME}/prefix/bullet \
         -DBUILD_BULLET2_DEMOS=OFF \
         -DBUILD_CPU_DEMOS=OFF \
         -DBUILD_UNIT_TESTS=OFF \
@@ -271,15 +239,22 @@ RUN wget -c https://github.com/bulletphysics/bullet3/archive/${BULLET_VERSION}.t
         -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
         -DBULLET2_MULTITHREADING=ON && \
     make -j $(nproc) && make install
+RUN cd ${HOME}/prefix/bullet && zip -r ${HOME}/zips/Bullet.zip ./*
+RUN cp -rl ${HOME}/prefix/bullet/* ${HOME}/prefix/
 
 # Setup GL4ES_VERSION
+RUN mkdir -p ${HOME}/prefix/gl4es/lib
+RUN mkdir -p ${HOME}/prefix/gl4es/include/gl4es
 RUN wget -c https://github.com/Duron27/gl4es/archive/refs/tags/${GL4ES_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/
-RUN patch -d ${HOME}/src/gl4es-${GL4ES_VERSION} -p1 -t -N < /root/patches/gl4es/enable_shaders.patch
 RUN cd ${HOME}/src/gl4es-${GL4ES_VERSION} && \
     ndk-build ${NDK_BUILD_FLAGS} && \
-    cp libs/${ABI}/libGL.so /root/prefix/lib/ && cp -r ${HOME}/src/gl4es-${GL4ES_VERSION}/include /root/prefix/include/gl4es/ && cp -r ${HOME}/src/gl4es-${GL4ES_VERSION}/include /root/prefix/
+    cp libs/${ABI}/libGL.so ${HOME}/prefix/gl4es/lib/ && \
+    cp -r ${HOME}/src/gl4es-${GL4ES_VERSION}/include ${HOME}/prefix/gl4es
+RUN cd ${HOME}/prefix/gl4es/ && zip -r ${HOME}/zips/GL4ES.zip ./*
+RUN cp -rl ${HOME}/prefix/gl4es/* ${HOME}/prefix/
 
 # Setup MYGUI
+RUN mkdir -p ${HOME}/prefix/mygui
 RUN wget -c https://github.com/MyGUI/mygui/archive/MyGUI${MYGUI_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     mkdir -p ${HOME}/src/mygui-MyGUI${MYGUI_VERSION}/build && cd $_ && \
     cmake ${HOME}/src/mygui-MyGUI${MYGUI_VERSION} \
@@ -290,27 +265,35 @@ RUN wget -c https://github.com/MyGUI/mygui/archive/MyGUI${MYGUI_VERSION}.tar.gz 
         -DMYGUI_BUILD_PLUGINS=OFF \
         -DMYGUI_DONT_USE_OBSOLETE=ON \
         -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+        -DCMAKE_INSTALL_PREFIX=${HOME}/prefix/mygui \
         -DMYGUI_STATIC=ON && \
     make -j $(nproc) && make install
+RUN cd ${HOME}/prefix/mygui && zip -r ${HOME}/zips/MYGUI.zip ./*
+RUN cp -rl ${HOME}/prefix/mygui/* ${HOME}/prefix/
 
 # Setup LZ4
+RUN mkdir -p ${HOME}/prefix/lz4
 RUN wget -c https://github.com/lz4/lz4/archive/v${LZ4_VERSION}.tar.gz -O - | tar -xz -C $HOME/src/ && \
     mkdir -p ${HOME}/src/lz4-${LZ4_VERSION}/build && cd $_ && \
     cmake ${HOME}/src/lz4-${LZ4_VERSION}/build/cmake/ \
         ${COMMON_CMAKE_ARGS} \
         -DBUILD_STATIC_LIBS=ON \
         -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+        -DCMAKE_INSTALL_PREFIX=${HOME}/prefix/lz4 \
         -DBUILD_SHARED_LIBS=OFF && \
     make -j $(nproc) && make install
+RUN cd ${HOME}/prefix/lz4 && zip -r ${HOME}/zips/LZ4.zip ./*
+RUN cp -rl ${HOME}/prefix/lz4/* ${HOME}/prefix/
 
 # Setup LUAJIT_VERSION
+RUN mkdir -p ${HOME}/prefix/luajit
 RUN wget -c https://github.com/luaJit/LuaJIT/archive/v${LUAJIT_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/ && \
     cd ${HOME}/src/LuaJIT-${LUAJIT_VERSION} && \
     make amalg \
     HOST_CC='gcc -m64' \
     CFLAGS= \
     TARGET_CFLAGS="${CFLAGS}" \
-    PREFIX=${PREFIX} \
+    PREFIX=${HOME}/prefix/luajit \
     CROSS=${TOOLCHAIN}/bin/llvm- \
     STATIC_CC=${NDK_TRIPLET}${API}-clang \
     DYNAMIC_CC='${NDK_TRIPLET}${API}-clang -fPIC' \
@@ -319,17 +302,19 @@ RUN wget -c https://github.com/luaJit/LuaJIT/archive/v${LUAJIT_VERSION}.tar.gz -
     HOST_CC='gcc -m64' \
     CFLAGS= \
     TARGET_CFLAGS="${CFLAGS}" \
-    PREFIX=${PREFIX} \
+    PREFIX=${HOME}/prefix/luajit \
     CROSS=${TOOLCHAIN}/bin/llvm- \
     STATIC_CC=${NDK_TRIPLET}${API}-clang \
     DYNAMIC_CC='${NDK_TRIPLET}${API}-clang -fPIC' \
     TARGET_LD=${NDK_TRIPLET}${API}-clang
-
-RUN bash -c "rm ${PREFIX}/lib/libluajit*.so*"
+RUN bash -c "rm /root/prefix/luajit/lib/libluajit*.so*"
+RUN cd ${HOME}/prefix/luajit && zip -r ${HOME}/zips/LUAjit.zip ./*
+RUN cp -rl ${HOME}/prefix/luajit/* ${HOME}/prefix/
 
 # Setup LIBCOLLADA_VERSION
+RUN mkdir -p ${HOME}/prefix/libcollada
 RUN wget -c https://github.com/rdiankov/collada-dom/archive/v${COLLADA_DOM_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/ && cd ${HOME}/src/collada-dom-${COLLADA_DOM_VERSION} && \
-    patch -ruN dom/external-libs/minizip-1.1/ioapi.h < /root/patches/libcollada-minizip-fix.patch && \
+    patch -ruN dom/external-libs/minizip-1.1/ioapi.h < /patches/libcollada-minizip-fix.patch && \
     mkdir -p ${HOME}/src/collada-dom-${COLLADA_DOM_VERSION}/build && cd $_ && \
     cmake .. \
         ${COMMON_CMAKE_ARGS} \
@@ -337,13 +322,18 @@ RUN wget -c https://github.com/rdiankov/collada-dom/archive/v${COLLADA_DOM_VERSI
         -DBoost_USE_STATIC_RUNTIME=ON \
         -DBoost_NO_SYSTEM_PATHS=ON \
         -DBoost_INCLUDE_DIR=${PREFIX}/include \
-        -DCMAKE_CXX_FLAGS=-Dauto_ptr=unique_ptr\ "${CXXFLAGS}" && \
+        -DCMAKE_CXX_FLAGS=-Dauto_ptr=unique_ptr\ "${CXXFLAGS}" \
+        -DCMAKE_INSTALL_PREFIX=${HOME}/prefix/libcollada && \
     make -j $(nproc) && make install
+RUN cd ${HOME}/prefix/libcollada && zip -r ${HOME}/zips/Libcollada.zip ./*
+RUN cp -rl ${HOME}/prefix/libcollada/* ${HOME}/prefix/
 
 # Setup OPENSCENEGRAPH_VERSION
+RUN mkdir -p ${HOME}/prefix/osg
 RUN wget -c https://github.com/openmw/osg/archive/${OSG_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/ && \
     mkdir -p ${HOME}/src/osg-${OSG_VERSION}/build && cd $_ && \
-    patch -d ${HOME}/src/osg-${OSG_VERSION} -p1 -t -N < /root/patches/osg/osgcombined.patch && \
+    patch -d ${HOME}/src/osg-${OSG_VERSION} -p1 -t -N < /patches/osg/osgcombined.patch && \
+    patch -d ${HOME}/src/osg-${OSG_VERSION} -p1 -t -N < /patches/osg/mipmaps.patch && \
     cmake .. \
         ${COMMON_CMAKE_ARGS} \
         -DOPENGL_PROFILE=GL1 \
@@ -358,11 +348,7 @@ RUN wget -c https://github.com/openmw/osg/archive/${OSG_VERSION}.tar.gz -O - | t
         -DBUILD_OSG_PLUGIN_PNG=ON \
         -DBUILD_OSG_PLUGIN_FREETYPE=ON \
         -DOSG_CPP_EXCEPTIONS_AVAILABLE=TRUE \
-        -DJPEG_INCLUDE_DIR=${PREFIX}/include/ \
-        -DPNG_INCLUDE_DIR=${PREFIX}/include/ \
-        -DFREETYPE_DIR=${PREFIX}/include/ \
-        -DCOLLADA_INCLUDE_DIR=${PREFIX}/include/collada-dom2.5 \
-        -DCOLLADA_DIR=${PREFIX}/include/collada-dom2.5/1.4 \
+        -DCMAKE_INSTALL_PREFIX=${HOME}/prefix/osg \
         -DOSG_GL1_AVAILABLE=ON \
         -DOSG_GL2_AVAILABLE=OFF \
         -DOSG_GL3_AVAILABLE=OFF \
@@ -378,89 +364,8 @@ RUN wget -c https://github.com/openmw/osg/archive/${OSG_VERSION}.tar.gz -O - | t
         -DBUILD_OSG_PLUGINS_BY_DEFAULT=OFF \
         -DBUILD_OSG_DEPRECATED_SERIALIZERS=OFF \
         -DOSG_FIND_3RD_PARTY_DEPS=OFF \
-        -DOPENGL_INCLUDE_DIR=${PREFIX}/include/gl4es/ \
-        -DCMAKE_CXX_FLAGS=-Dauto_ptr=unique_ptr\ -I${PREFIX}/include/freetype2/\ "${CXXFLAGS}" && \
+        -DOPENGL_INCLUDE_DIR=${PREFIX}/include/ \
+        -DCMAKE_CXX_FLAGS=-Dauto_ptr=unique_ptr\ "${CXXFLAGS}" && \
     make -j $(nproc) && make install
-
-# Setup OPENMW_VERSION
-RUN wget -c https://github.com/OpenMW/openmw/archive/${OPENMW_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/ && \
-    mkdir -p ${HOME}/src/openmw-${OPENMW_VERSION}/build && cd $_
-RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/cmakefix.patch
-RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/Settings_cfg_on_ok.patch
-RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/0001-loadingscreen-disable-for-now.patch
-RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/0009-windowmanagerimp-always-show-mouse-when-possible-pat.patch
-RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/0010-android-fix-context-being-lost-on-app-minimize.patch
-RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/fix-build.patch
-RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/post-processing-hud-resize.patch
-RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/Improved_grass.patch
-RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/shaders.patch
-RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/Post_additions.patch
-RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/fix_shadows.patch
-RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/sdlfixreversed.patch
-RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/navmeshtool.patch
-RUN patch ${HOME}/src/openmw-${OPENMW_VERSION}/CMakeLists.txt < /root/patches/openmw/openmw_ignoreffmpegversion.patch
-RUN cp /root/patches/openmw/android_main.cpp /root/src/openmw-${OPENMW_VERSION}/apps/openmw/android_main.cpp
-
-RUN cd ${HOME}/src/openmw-${OPENMW_VERSION}/build && cmake .. \
-        ${COMMON_CMAKE_ARGS} \
-        -DBUILD_BSATOOL=0 \
-        -DBUILD_NIFTEST=0 \
-        -DBUILD_ESMTOOL=0 \
-        -DBUILD_LAUNCHER=0 \
-        -DBUILD_MWINIIMPORTER=0 \
-        -DBUILD_ESSIMPORTER=0 \
-        -DBUILD_OPENCS=0 \
-        -DBUILD_NAVMESHTOOL=0 \
-        -DBUILD_WIZARD=0 \
-        -DBUILD_MYGUI_PLUGIN=0 \
-        -DOPENMW_GL4ES_MANUAL_INIT=ON \
-        -DBUILD_BULLETOBJECTTOOL=0 \
-        -DOPENMW_USE_SYSTEM_SQLITE3=OFF \
-        -DOPENMW_USE_SYSTEM_YAML_CPP=OFF \
-        -DOPENMW_USE_SYSTEM_ICU=ON \
-        -DOPENAL_INCLUDE_DIR=${PREFIX}/include/AL/ \
-        -DBullet_INCLUDE_DIR=${PREFIX}/include/bullet/ \
-        -DOSG_STATIC=TRUE \
-        -DCMAKE_CXX_FLAGS=-I${PREFIX}/include/\ "${CXXFLAGS}" \
-        -DMyGUI_LIBRARY=${PREFIX}/lib/libMyGUIEngineStatic.a && \
-    make -j $(nproc)
-
-# Finalize
-RUN rm -rf /root/payload/app/wrap/ && rm -rf /root/payload/app/src/main/jniLibs/${ABI}/ && mkdir -p /root/payload/app/src/main/jniLibs/${ABI}/
-
-# libopenmw.so is a special case
-RUN find /root/src/openmw-${OPENMW_VERSION}/ -iname "libopenmw.so" -exec cp "{}" /root/payload/app/src/main/jniLibs/${ABI}/libopenmw.so \;
-
-# copy over libs we compiled
-RUN cp ${PREFIX}/lib/{libopenal,libSDL2,libGL,libcollada-dom2.5-dp}.so /root/payload/app/src/main/jniLibs/${ABI}/
-
-# copy over libc++_shared
-RUN find ${TOOLCHAIN}/sysroot/usr/lib/${NDK_TRIPLET} -iname "libc++_shared.so" -exec cp "{}" /root/payload/app/src/main/jniLibs/${ABI}/ \;
-ENV DST=/root/payload/app/src/main/assets/libopenmw/
-ENV SRC=/root/src/openmw-${OPENMW_VERSION}/build/
-RUN rm -rf "${DST}" && mkdir -p "${DST}"
-
-# Copy over Resources
-RUN cp -r "${SRC}/resources" "${DST}"
-
-# Add Zackhasacat's Controller Mod
-#RUN cd ${DST}/resources/vfs/ && git clone https://gitlab.com/zackhasacat/controller_mode && cp -r ./controller_mode/* . && rm -rf controller_mode && cat "${DST}/resources/vfs/ControllerInterface.omwscripts" >> "${DST}/resources/vfs/builtin.omwscripts"
-
-# Global Config
-RUN mkdir -p "${DST}/openmw/"
-RUN cp "${SRC}/defaults.bin" "${DST}/openmw/"
-RUN cp "${SRC}/gamecontrollerdb.txt" "${DST}/openmw/"
-RUN cat "${SRC}/openmw.cfg" | grep -v "data=" | grep -v "data-local=" >> "${DST}/openmw/openmw.base.cfg"
-RUN cat "/root/payload/app/openmw.base.cfg" >> "${DST}/openmw/openmw.base.cfg"
-RUN mkdir -p /root/payload/app/src/main/assets/libopenmw/resources && cd $_ && echo "${APP_VERSION}" >> version
-#RUN sed -i '4i\    <string name="version_info">OMW ${APP_VERSION}</string>' /root/payload/app/src/main/res/values/strings.xml
-
-# licensing info
-RUN cp "/root/payload/3rdparty-licenses.txt" "${DST}"
-
-# Remove Debug Symbols
-RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/*.so
-
-# Build the APK!
-RUN cd /root/payload/ && ./gradlew assembleNightlyDebug -Dorg.gradle.java.home=/usr/lib/jvm/java-11-openjdk-11.0.22.0.7-1.fc39.x86_64
-RUN cp /root/payload/app/build/outputs/apk/nightly/debug/*.apk openmw-${APP_VERSION}.apk
+RUN cd ${HOME}/prefix/osg && zip -r ${HOME}/zips/osg.zip ./*
+RUN cp -rl ${HOME}/prefix/osg/* ${HOME}/prefix/
