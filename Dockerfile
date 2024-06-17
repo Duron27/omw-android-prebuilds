@@ -105,6 +105,15 @@ ENV NDK_BUILD_FLAGS \
 RUN mkdir -p ${HOME}/{zips,src}
 COPY --chmod=0755 patches ${HOME}/patches
 
+RUN wget https://sh.rustup.rs -O rustup.sh && sha256sum rustup.sh && \
+    echo "32a680a84cf76014915b3f8aa44e3e40731f3af92cd45eb0fcc6264fd257c428  rustup.sh" | sha256sum -c - && \
+    sh rustup.sh -y && rm rustup.sh && \
+    ${HOME}/.cargo/bin/rustup target add ${NDK_TRIPLET} && \
+    ${HOME}/.cargo/bin/rustup toolchain install nightly && \
+    ${HOME}/.cargo/bin/rustup target add --toolchain nightly ${NDK_TRIPLET} && \
+    echo "[target.${NDK_TRIPLET}]" >> /root/.cargo/config && \
+    echo "linker = \"${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang\"" >> /root/.cargo/config
+
 # Setup LIBICU
 RUN mkdir -p ${HOME}/prefix/icu
 RUN mkdir -p ${HOME}/src/icu-${LIBICU_VERSION} && cd $_ && \
