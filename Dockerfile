@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:labs
-FROM olevolbracht/androidbuildbaseimages:ndk28java17
+FROM rockylinux:9
 
 #Set build type : release, debug
 ENV BUILD_TYPE=release
@@ -10,8 +10,9 @@ ENV LIBPNG_VERSION=1.6.42
 ENV FREETYPE2_VERSION=2.13.2
 ENV OPENAL_VERSION=1.23.1
 ENV BOOST_VERSION=1.83.0
+ENV LIBICU_VERSION=70-1
 ENV FFMPEG_VERSION=6.1
-ENV SDL2_VERSION=2.0.22
+ENV SDL2_VERSION=2.24.0
 ENV BULLET_VERSION=3.25
 ENV ZLIB_VERSION=1.3.1
 ENV LIBXML2_VERSION=2.12.5
@@ -22,6 +23,84 @@ ENV OSG_VERSION=69cfecebfb6dc703b42e8de39eed750a84a87489
 ENV LZ4_VERSION=1.9.3
 ENV LUAJIT_VERSION=2.1.ROLLING
 ENV OPENMW_VERSION=05815b39527e41f820f8d24895e4fa1e82bb753c
+ENV NDK_VERSION=26.3.11579264
+ENV SDK_CMDLINE_TOOLS=10406996_latest
+ENV PLATFORM_TOOLS_VERSION=29.0.0
+ENV JAVA_VERSION=17
+
+# Version of Release
+ARG APP_VERSION=unknown
+
+RUN dnf install -y dnf-plugins-core && dnf config-manager --set-enabled crb && dnf install -y epel-release
+RUN dnf install -y https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm \
+    && dnf install -y xz p7zip bzip2 libstdc++-devel glibc-devel zip unzip libcurl-devel java-11-openjdk which wget python-devel doxygen nano gcc-c++ git java-${JAVA_VERSION}-openjdk cmake patch
+
+RUN alternatives --set java java-17-openjdk.x86_64
+RUN JAVA_HOME=$(dirname $(dirname $(readlink $(readlink $(which java)))))
+ENV ANDROID_SDK_ROOT=/root/Android/cmdline-tools/latest/bin
+ENV ANDROID_HOME=/root/Android
+RUN mkdir -p ${HOME}/prefix
+RUN mkdir -p ${HOME}/src
+
+# Set the installation Dir
+ENV PREFIX=/root/prefix
+RUN cd ${HOME}/src && wget https://github.com/unicode-org/icu/archive/refs/tags/release-${LIBICU_VERSION}.zip && unzip -o ${HOME}/src/release-${LIBICU_VERSION}.zip && rm -rf release-${LIBICU_VERSION}.zip
+RUN wget https://dl.google.com/android/repository/commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip && unzip commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip && mkdir -p ${HOME}/Android/cmdline-tools/ && mv cmdline-tools/ ${HOME}/Android/cmdline-tools/latest && rm commandlinetools-linux-${SDK_CMDLINE_TOOLS}.zip
+RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
+RUN ~/Android/cmdline-tools/latest/bin/sdkmanager --install "ndk;${NDK_VERSION}" "platforms;android-28" "platform-tools" "build-tools;29.0.2" --channel=0
+RUN yes | ~/Android/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
+
+COPY --chmod=0755 patches /root/patches
+
+#Setup ICU for the Host
+RUN mkdir -p ${HOME}/src/icu-host-build && cd $_ && ${HOME}/src/icu-release-70-1/icu4c/source/configure --disable-tests --disable-samples --disable-icuio --disable-extras CC="gcc" CXX="g++" && make -j $(nproc)
+ENV PATH=$PATH:/root/Android/cmdline-tools/latest/bin/:/root/Android/ndk/${NDK_VERSION}/:/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64:/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin:/root/prefix/include:/root/prefix/lib:/root/prefix/:/root/.cargo/bin
+
+# NDK Settings
+ENV API=28
+ENV ABI=arm64-v8a
+ENV ARCH=aarch64
+ENV NDK_TRIPLET=${ARCH}-linux-android
+ENV TOOLCHAIN=/root/Android/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64
+ENV NDK_SYSROOT=${TOOLCHAIN}/sysroot/
+ENV ANDROID_SYSROOT=${TOOLCHAIN}/sysroot/
+ENV AR=${TOOLCHAIN}/bin/llvm-ar
+ENV LD=${TOOLCHAIN}/bin/ld
+ENV RANLIB=${TOOLCHAIN}/bin/llvm-ranlib
+ENV STRIP=${TOOLCHAIN}/bin/llvm-strip
+ENV CC=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang
+ENV CXX=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++
+ENV clang=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang
+ENV clang++=${TOOLCHAIN}/bin/${NDK_TRIPLET}${API}-clang++
+
+# Global C, CXX and LDFLAGS
+ENV CFLAGS="-fPIC -O3 -flto=thin"
+ENV CXXFLAGS="-fPIC -O3 -frtti -fexceptions -flto=thin"
+ENV LDFLAGS="-fPIC -Wl,--undefined-version -flto=thin -fuse-ld=lld"
+
+ENV COMMON_CMAKE_ARGS \
+  "-DCMAKE_TOOLCHAIN_FILE=/root/Android/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake" \
+  "-DANDROID_ABI=$ABI" \
+  "-DANDROID_PLATFORM=android-${API}" \
+  "-DANDROID_STL=c++_shared" \
+  "-DANDROID_CPP_FEATURES=" \
+  "-DANDROID_ALLOW_UNDEFINED_VERSION_SCRIPT_SYMBOLS=ON" \
+  "-DCMAKE_BUILD_TYPE=$BUILD_TYPE" \
+  "-DCMAKE_C_FLAGS=-I${PREFIX}" \
+  "-DCMAKE_DEBUG_POSTFIX=" \
+  "-DCMAKE_INSTALL_PREFIX=${PREFIX}" \
+  "-DCMAKE_FIND_ROOT_PATH=${PREFIX}" \
+  "-DCMAKE_CXX_COMPILER=${NDK_TRIPLET}${API}-clang++" \
+  "-DCMAKE_CC_COMPILER=${NDK_TRIPLET}${API}-clang" \
+  "-DHAVE_LD_VERSION_SCRIPT=OFF"
+
+ENV COMMON_AUTOCONF_FLAGS="--enable-static --disable-shared --prefix=${PREFIX} --host=${NDK_TRIPLET}${API}"
+
+ENV NDK_BUILD_FLAGS \
+    "NDK_PROJECT_PATH=." \
+    "APP_BUILD_SCRIPT=./Android.mk" \
+    "APP_PLATFORM=${API}" \
+    "APP_ABI=${ABI}"
 
 RUN mkdir -p ${HOME}/{zips,src}
 COPY --chmod=0755 patches ${HOME}/patches
