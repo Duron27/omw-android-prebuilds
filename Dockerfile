@@ -457,3 +457,5 @@ RUN wget -c https://github.com/openmw/osg/archive/${OSG_VERSION}.tar.gz -O - | t
     make -j $(nproc) && make install
 RUN cd ${HOME}/prefix/osg && zip -r ${HOME}/zips/osg.zip ./*
 RUN cp -rl ${HOME}/prefix/osg/* ${HOME}/prefix/
+
+RUN cd root/src && git clone https://gitlab.com/bmwinger/delta-plugin && cd delta-plugin && cargo build --target ${NDK_TRIPLET} --release
