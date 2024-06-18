@@ -81,3 +81,5 @@ Delta_Plugin
 https://gitlab.com/bmwinger/delta-plugin
 
 creates ZIP Releases for all the Dependencies.
+
+zips in /root/zips/
