@@ -4,18 +4,19 @@ FROM olevolbracht/androidbuildbaseimages:latest
 #Set build type : release, debug
 ENV BUILD_TYPE=release
 
+ENV ZIPS_RELEASE=7131099275
+
 ENV OPENMW_VERSION=05815b39527e41f820f8d24895e4fa1e82bb753c
 
-ENV FILES=https://gitlab.com/androidcontained/openmw-dependencies/-/jobs/7129109404/artifacts/raw/zips
+ENV FILES=https://gitlab.com/androidcontained/openmw-dependencies/-/jobs/${ZIPS_RELEASE}/artifacts/raw/zips
 
 # Version of Release
 ARG APP_VERSION=unknown
 
 RUN mkdir -p ${HOME}/zips && cd $_ && \
-    wget ${FILES}/{osg,Zlib,SDL2,Openal,MYGUI,Libxml,Libpng,Libjpeg,Libcollada,LibIcu,LZ4,LUAjit,GL4ES,Freetype2,FFmpeg,Bzip2,Bullet,Boost}.zip
+    wget ${FILES}/{osg,Zlib,SDL2,Openal,MYGUI,Libxml,Libpng,Libjpeg,Libcollada,LibIcu,LZ4,LUAjit,GL4ES,Freetype2,FFmpeg,Bzip2,Bullet,Boost,Libdelta}.zip
 
 RUN cd ${HOME}/prefix && unzip '/root/zips/*.zip'
-
 COPY --chmod=0755 patches /root/patches
 
 # Setup OPENMW_VERSION
@@ -58,8 +59,7 @@ RUN cd ${HOME}/src/openmw-${OPENMW_VERSION}/build && cmake .. \
         -DMyGUI_LIBRARY=${PREFIX}/lib/libMyGUIEngineStatic.a && \
     make -j $(nproc)
 
-RUN cd root/src && git clone https://gitlab.com/bmwinger/delta-plugin && cd delta-plugin && cargo build --target ${NDK_TRIPLET} --release
-RUN cp /root/src/delta-plugin/target/${NDK_TRIPLET}/release/delta_plugin ${PREFIX}/lib/libdelta_plugin.so
+RUN cd ${HOME}/zips && unzip Libdelta.zip && cp libdelta_plugin.so ${PREFIX}/lib/libdelta_plugin.so
 
 COPY --chmod=0755 payload /root/payload
 COPY --chmod=0755 mods /root/mods
