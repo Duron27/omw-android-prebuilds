@@ -6,7 +6,7 @@ ENV BUILD_TYPE=release
 
 ENV OPENMW_VERSION=05815b39527e41f820f8d24895e4fa1e82bb753c
 
-ENV FILES=https://gitlab.com/androidcontained/openmw-dependencies/-/jobs/7122792718/artifacts/raw/zips
+ENV FILES=https://gitlab.com/androidcontained/openmw-dependencies/-/jobs/7129109404/artifacts/raw/zips
 
 # Version of Release
 ARG APP_VERSION=unknown
