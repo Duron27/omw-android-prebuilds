@@ -53,5 +53,4 @@ jobs:
         asset_name: ${{ matrix.file }}
         asset_content_type: application/zip
       
-        matrix:
-          file: ${{fromJson(steps.set-matrix.outputs.result)}}
+     
