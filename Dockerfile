@@ -337,7 +337,8 @@ RUN wget -c https://github.com/Duron27/gl4es/archive/refs/tags/${GL4ES_VERSION}.
 RUN cd ${HOME}/src/gl4es-${GL4ES_VERSION} && \
     ndk-build ${NDK_BUILD_FLAGS} && \
     cp libs/${ABI}/libGL.so ${HOME}/prefix/gl4es/lib/ && \
-    cp -r ${HOME}/src/gl4es-${GL4ES_VERSION}/include ${HOME}/prefix/gl4es
+    cp -r ${HOME}/src/gl4es-${GL4ES_VERSION}/include ${HOME}/prefix/gl4es && \
+    cp -r ${HOME}/src/gl4es-${GL4ES_VERSION}/include ${HOME}/prefix/gl4es/include/gl4es/
 RUN cd ${HOME}/prefix/gl4es/ && zip -r ${HOME}/zips/GL4ES.zip ./*
 RUN cp -rl ${HOME}/prefix/gl4es/* ${HOME}/prefix/
 
