@@ -1,0 +1,109 @@
+# syntax=docker/dockerfile:labs
+FROM olevolbracht/androidbuildbaseimages:latest
+
+#Set build type : release, debug
+ENV BUILD_TYPE=release
+
+ENV OPENMW_VERSION=05815b39527e41f820f8d24895e4fa1e82bb753c
+
+ENV FILES=https://gitlab.com/androidcontained/openmw-dependencies/-/jobs/7122792718/artifacts/raw/zips
+
+# Version of Release
+ARG APP_VERSION=unknown
+
+RUN mkdir -p ${HOME}/zips && cd $_ && \
+    wget ${FILES}/{osg,Zlib,SDL2,Openal,MYGUI,Libxml,Libpng,Libjpeg,Libcollada,LibIcu,LZ4,LUAjit,GL4ES,Freetype2,FFmpeg,Bzip2,Bullet,Boost}.zip
+
+RUN cd ${HOME}/prefix && unzip '/root/zips/*.zip'
+
+COPY --chmod=0755 patches /root/patches
+
+# Setup OPENMW_VERSION
+RUN wget -c https://github.com/OpenMW/openmw/archive/${OPENMW_VERSION}.tar.gz -O - | tar -xz -C ${HOME}/src/ && \
+    mkdir -p ${HOME}/src/openmw-${OPENMW_VERSION}/build && cd $_
+RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/cmakefix.patch
+RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/Settings_cfg_on_ok.patch
+RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/0001-loadingscreen-disable-for-now.patch
+RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/0009-windowmanagerimp-always-show-mouse-when-possible-pat.patch
+RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/0010-android-fix-context-being-lost-on-app-minimize.patch
+RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/fix-build.patch
+RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/post-processing-hud-resize.patch
+RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/Improved_grass.patch
+RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/shaders.patch
+RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/Post_additions.patch
+RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/fix_shadows.patch
+RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/sdlfixreversed.patch
+RUN patch -d ${HOME}/src/openmw-${OPENMW_VERSION} -p1 -t -N < /root/patches/openmw/navmeshtool.patch
+RUN patch ${HOME}/src/openmw-${OPENMW_VERSION}/CMakeLists.txt < /root/patches/openmw/openmw_ignoreffmpegversion.patch
+RUN cp /root/patches/openmw/android_main.cpp /root/src/openmw-${OPENMW_VERSION}/apps/openmw/android_main.cpp
+
+RUN cd ${HOME}/src/openmw-${OPENMW_VERSION}/build && cmake .. \
+        ${COMMON_CMAKE_ARGS} \
+        -DBUILD_BSATOOL=0 \
+        -DBUILD_NIFTEST=0 \
+        -DBUILD_ESMTOOL=0 \
+        -DBUILD_LAUNCHER=0 \
+        -DBUILD_MWINIIMPORTER=0 \
+        -DBUILD_ESSIMPORTER=0 \
+        -DBUILD_OPENCS=0 \
+        -DBUILD_NAVMESHTOOL=0 \
+        -DBUILD_WIZARD=0 \
+        -DBUILD_MYGUI_PLUGIN=0 \
+        -DOPENMW_GL4ES_MANUAL_INIT=ON \
+        -DBUILD_BULLETOBJECTTOOL=0 \
+        -DOPENMW_USE_SYSTEM_SQLITE3=OFF \
+        -DOPENMW_USE_SYSTEM_YAML_CPP=OFF \
+        -DOPENMW_USE_SYSTEM_ICU=ON \
+        -DOSG_STATIC=TRUE \
+        -DMyGUI_LIBRARY=${PREFIX}/lib/libMyGUIEngineStatic.a && \
+    make -j $(nproc)
+
+RUN cd root/src && git clone https://gitlab.com/bmwinger/delta-plugin && cd delta-plugin && cargo build --target ${NDK_TRIPLET} --release
+RUN cp /root/src/delta-plugin/target/${NDK_TRIPLET}/release/delta_plugin ${PREFIX}/lib/libdelta_plugin.so
+
+COPY --chmod=0755 payload /root/payload
+COPY --chmod=0755 mods /root/mods
+
+# Finalize
+RUN rm -rf /root/payload/app/wrap/ && rm -rf /root/payload/app/src/main/jniLibs/${ABI}/ && mkdir -p /root/payload/app/src/main/jniLibs/${ABI}/
+
+# libopenmw.so is a special case
+RUN find /root/src/openmw-${OPENMW_VERSION}/ -iname "libopenmw.so" -exec cp "{}" /root/payload/app/src/main/jniLibs/${ABI}/libopenmw.so \;
+
+# copy over libs we compiled
+RUN cp ${PREFIX}/lib/{libopenal,libSDL2,libGL,libcollada-dom2.5-dp,libdelta_plugin}.so /root/payload/app/src/main/jniLibs/${ABI}/
+
+# copy over libc++_shared
+RUN find ${TOOLCHAIN}/sysroot/usr/lib/${NDK_TRIPLET} -iname "libc++_shared.so" -exec cp "{}" /root/payload/app/src/main/jniLibs/${ABI}/ \;
+ENV DST=/root/payload/app/src/main/assets/libopenmw/
+ENV SRC=/root/src/openmw-${OPENMW_VERSION}/build/
+RUN rm -rf "${DST}" && mkdir -p "${DST}"
+
+# Copy over Resources
+RUN cp -r "${SRC}/resources" "${DST}"
+
+# Copy over Mods
+RUN cd ${DST}/resources/vfs/ && cp -r /root/mods/* .
+
+# Global Config
+RUN mkdir -p "${DST}/openmw/"
+RUN cp "${SRC}/defaults.bin" "${DST}/openmw/"
+RUN cp "${SRC}/gamecontrollerdb.txt" "${DST}/openmw/"
+RUN cat "${SRC}/openmw.cfg" | grep -v "data=" | grep -v "data-local=" >> "${DST}/openmw/openmw.base.cfg"
+RUN cat "/root/payload/app/openmw.base.cfg" >> "${DST}/openmw/openmw.base.cfg"
+RUN mkdir -p /root/payload/app/src/main/assets/libopenmw/resources && cd $_ && echo "${APP_VERSION}" >> version
+RUN sed -i "4i\    <string name='version_info'>CaveBros Version ${APP_VERSION}</string>" /root/payload/app/src/main/res/values/strings.xml
+RUN sed -i "92i\    ndkVersion \"${NDK_VERSION}\"" /root/payload/app/build.gradle
+
+# licensing info
+RUN cp "/root/payload/3rdparty-licenses.txt" "${DST}"
+
+# Remove Debug Symbols
+RUN llvm-strip /root/payload/app/src/main/jniLibs/arm64-v8a/*.so
+
+# Build the APK!
+RUN alternatives --set java java-11-openjdk.x86_64
+RUN JAVA_HOME=$(dirname $(dirname $(readlink $(readlink $(which java)))))
+RUN cd /root/payload/ && ./gradlew assembleRelease
+
+RUN cp /root/payload/app/build/outputs/apk/mainline/release/*.apk openmw-android.apk
