@@ -15,4 +15,19 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+      run: |
+        docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+        CTID=$(docker create Dockerfile)
+        docker cp -a $CTID:/*.xz /builds/$CI_PROJECT_PATH/
+
+    - name: Collect outputs
+      id: getfilename
+      run: |
+        mv docker cp -a $CTID:/*.xz omw-prebuilt-$(date +%Y%m%d).xz
+        echo "xz_file=$(ls omw-prebuilt-$(date +%Y%m%d).xz | sed 's/\(.*\)\..*/\1/')" >> $GITHUB_ENV
+        
+    - name: Upload the XZ
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.xz_file }}
+        path: ${{ env.xz_file }}.xz
