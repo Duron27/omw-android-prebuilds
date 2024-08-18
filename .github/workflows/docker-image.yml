@@ -17,8 +17,7 @@ jobs:
     - name: Build the Docker image
       run: |
         docker build . --file Dockerfile --tag my-image-name:$(date +%s)
-        CTID=$(docker create Dockerfile)
-        docker cp -a $CTID:/*.xz /builds/$CI_PROJECT_PATH/
+        CTID=$(docker create Dockerfile)        
 
     - name: Collect outputs
       id: getfilename
